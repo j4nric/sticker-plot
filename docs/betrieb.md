@@ -117,6 +117,9 @@ Caddy besorgt Zertifikate automatisch. Beispiel für `/etc/caddy/Caddyfile`:
 ```
 etiketten.teetreffpunkt.de {
     encode gzip
+    request_body {
+        max_size 64MB
+    }
     reverse_proxy 127.0.0.1:3000
 }
 ```
@@ -125,26 +128,73 @@ Danach `sudo systemctl reload caddy`. Mit nginx funktioniert es genauso über `p
 zusätzlich ein Zertifikat, z. B. per certbot, einrichten. Ohne HTTPS funktioniert der Login nicht,
 weil das Cookie nur über sichere Verbindungen gesendet wird.
 
+## Anmeldung nach der Installation
+
+Beim ersten Start legt die App den Benutzer **admin** mit dem Passwort aus `APP_PASSWORD` an
+(steht in `/opt/sticker-plot/.env`). Danach unter **Verwaltung → Benutzer** Zugänge für das
+Personal anlegen und das Admin-Passwort unter **Konto** ändern.
+
+**Hinweis für das Update von der ersten Version:** Früher gab es nur ein gemeinsames Passwort. Nach
+dem Update meldet man sich mit dem Benutzernamen `admin` und genau diesem Passwort an. Alle
+bisherigen Tees, Drucker und Kalibrierungen bleiben erhalten.
+
 ## Updates
 
+Das Installationsskript erneut ausführen:
+
 ```bash
-git pull
-docker compose up -d --build
+sudo bash /opt/sticker-plot/scripts/install-server.sh <domain>
 ```
 
-Datenbank-Migrationen laufen beim Start automatisch.
+Es holt den neuesten Stand, baut den Container neu und startet ihn. Datenbank-Migrationen laufen
+beim Start automatisch, die Daten bleiben erhalten.
+
+### Automatische Updates per GitHub Actions (optional)
+
+Der Workflow `.github/workflows/deploy.yml` spielt jeden erfolgreich getesteten Stand automatisch
+auf dem Server ein. Dafür im GitHub-Repository unter **Settings → Secrets and variables → Actions**
+anlegen:
+
+| Secret | Inhalt |
+|---|---|
+| `DEPLOY_HOST` | IP oder Name des Servers |
+| `DEPLOY_DOMAIN` | Domain der App, z. B. `tee-62-83-23-90.sslip.io` |
+| `DEPLOY_SSH_KEY` | privater SSH-Schlüssel, dessen öffentlicher Teil in `/root/.ssh/authorized_keys` steht |
+| `DEPLOY_USER` | optional, Standard `root` |
+
+Ohne diese Secrets wird der Deploy-Schritt einfach übersprungen. Manuell auslösen lässt er sich
+unter **Actions → Deploy → Run workflow**.
+
+## Alte Etiketten vom Server aus importieren
+
+Für viele PDF-Dateien ist das Kommandozeilen-Werkzeug bequemer als das Hochladen im Browser. Die
+PDFs per SFTP (z. B. mit WinSCP oder FileZilla) in einen Ordner auf dem Server kopieren, dann:
+
+```bash
+sudo bash /opt/sticker-plot/scripts/import-pdfs.sh /root/etiketten-pdfs
+```
+
+Die Ergebnisse erscheinen unter **Verwaltung → Import** zur Prüfung. Mit `--direkt` am Ende werden
+sicher erkannte, neue Sorten sofort angelegt; unsichere und doppelte bleiben zur Prüfung stehen.
 
 ## Sicherung
 
-```bash
-# konsistente Kopie im laufenden Betrieb nach /app/data/backups im Volume
-docker compose exec app node scripts/backup.mjs
-# Sicherungen auf den Host kopieren
-docker compose cp app:/app/data/backups ./backups
-```
+Alle Daten, auch hochgeladene Bilder, liegen in einer SQLite-Datei im Docker-Volume `tee-data`.
 
-Für eine tägliche Sicherung beide Befehle in einen Cronjob auf dem Host schreiben und den Ordner
-`backups` zusätzlich extern sichern.
+- **Automatisch:** Das Installationsskript richtet eine tägliche Sicherung um 3:30 Uhr ein, die
+  30 Tage aufbewahrt wird.
+- **In der App:** **Verwaltung → Sicherung** lädt die aktuelle Datenbank herunter, listet die
+  Sicherungen auf dem Server und stellt eine Sicherung wieder her. Vor dem Wiederherstellen wird der
+  aktuelle Stand automatisch gesichert.
+- **Auf der Kommandozeile:**
+
+  ```bash
+  cd /opt/sticker-plot
+  docker compose exec app node scripts/backup.mjs        # Sicherung im Volume anlegen
+  docker compose cp app:/app/data/backups ./backups      # Sicherungen auf den Host kopieren
+  ```
+
+Die Sicherungen zusätzlich extern ablegen, z. B. regelmäßig in der App herunterladen.
 
 ## Fehlersuche
 
@@ -154,3 +204,9 @@ Für eine tägliche Sicherung beide Befehle in einen Cronjob auf dem Host schrei
   in `.env` setzen.
 - **Container startet nicht:** Fehlt `APP_PASSWORD` oder `SESSION_SECRET`, bricht der Start mit
   einer entsprechenden Meldung ab.
+- **Passwort des Admins vergessen:** Ein anderer Administrator setzt es unter Verwaltung →
+  Benutzer neu. Gibt es keinen, auf dem Server alle Benutzer entfernen:
+  `docker compose exec app node -e "const D=require('better-sqlite3');new D('/app/data/sticker-plot.db').prepare('delete from users').run()"`
+  und den Container neu starten. Beim Start wird „admin“ mit dem Passwort aus `.env` neu angelegt.
+- **PDF-Import hängt:** `docker compose logs app` prüfen. Abgebrochene Einträge werden nach einem
+  Neustart automatisch erneut verarbeitet.

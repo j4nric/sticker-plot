@@ -44,8 +44,21 @@ describe("readCalibration", () => {
 describe("readTeaForm", () => {
   it("trimmt und normalisiert", () => {
     const r = readTeaForm(form({ name: "  China Sencha ", teaType: "Grüner Tee", description: "a\r\nb", ingredients: "", color: "#4F9A3F" }));
-    expect(r.ok && r.value).toEqual({ name: "China Sencha", teaType: "Grüner Tee", description: "a\nb", ingredients: "", color: "#4f9a3f" });
+    expect(r.ok && r.value).toMatchObject({ name: "China Sencha", teaType: "Grüner Tee", description: "a\nb", ingredients: "", color: "#4f9a3f", motif: "auto", brewTemp: null, organic: false });
   });
+  it("prüft Zubereitung, EAN, Link und nicht druckbare Zeichen", () => {
+    const r = readTeaForm(form({ name: "Tee 🍵", color: "#4f9a3f", brewTemp: "120", ean: "123", productUrl: "javascript:alert(1)" }));
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.errors.name).toMatch(/nicht gedruckt/);
+      expect(r.errors.brewTemp).toBeDefined();
+      expect(r.errors.ean).toBeDefined();
+      expect(r.errors.productUrl).toBeDefined();
+    }
+    const ok = readTeaForm(form({ name: "Mate", color: "#7c8a2e", brewTemp: "90", brewTime: "5", ean: "400638133393", organic: "on", shelfLifeMonths: "24" }));
+    expect(ok.ok && ok.value).toMatchObject({ brewTemp: 90, brewTime: "5 Min.", ean: "4006381333931", organic: true, shelfLifeMonths: 24 });
+  });
+
   it("verlangt Namen und gültige Farbe", () => {
     const r = readTeaForm(form({ name: " ", color: "rot" }));
     expect(r.ok).toBe(false);
@@ -59,7 +72,8 @@ describe("readTeaForm", () => {
 describe("printRequest", () => {
   it("setzt Standardwerte und prüft Grenzen", () => {
     expect(printRequest.parse({})).toEqual({ anzahl: 12, start: 1 });
-    expect(printRequest.safeParse({ start: "13" }).success).toBe(false);
+    expect(printRequest.safeParse({ start: "801" }).success).toBe(false);
+    expect(printRequest.safeParse({ anzahl: "0" }).success).toBe(false);
     expect(printRequest.parse({ drucker: "2", anzahl: "30", start: "4" })).toEqual({ drucker: 2, anzahl: 30, start: 4 });
   });
 });

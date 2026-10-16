@@ -1,12 +1,13 @@
 import type { ReactNode } from "react";
 import {
   calibrationStyle,
-  LABELS_PER_SHEET,
+  DEFAULT_SHEET,
+  labelsPerSheet,
   referencePoints,
-  SHEET,
   slotPosition,
   type Calibration,
   type Point,
+  type SheetGeometry,
 } from "./geometry";
 
 const fmt = (v: number, digits = 2) => v.toLocaleString("de-DE", { minimumFractionDigits: digits, maximumFractionDigits: digits });
@@ -49,14 +50,14 @@ function Crosshair({ at, name }: { at: Point; name: string }) {
  * Randmarken: kurze Striche, die 1 bis 8 mm vom Papierrand beginnen.
  * Der erste vollständig gedruckte Strich zeigt den unbedruckbaren Rand.
  */
-function MarginScale() {
-  const W = SHEET.pageWidth;
-  const H = SHEET.pageHeight;
+function MarginScale({ format }: { format: SheetGeometry }) {
+  const W = format.pageWidth;
+  const H = format.pageHeight;
   const items: ReactNode[] = [];
   for (let d = 1; d <= 8; d++) {
     const off = (d - 4.5) * 2.6;
-    const cx = 148.25 + off;
-    const cy = 105.5 + off;
+    const cx = W / 2 + off;
+    const cy = H / 2 + off;
     const t = (key: string, x: number, y: number) => (
       <text key={key} x={x} y={y} fontSize="1.7" textAnchor="middle" fill="#333" stroke="none" fontFamily="Source Serif 4, serif">
         {d}
@@ -78,38 +79,46 @@ export function TestSheetPage({
   calibration,
   printerName,
   createdAt,
+  format = DEFAULT_SHEET,
+  formatName = "Standard",
 }: {
   calibration: Calibration;
   printerName: string;
   createdAt: Date;
+  format?: SheetGeometry;
+  formatName?: string;
 }) {
-  const { a, b } = referencePoints();
+  const { a, b, aIndex, bIndex } = referencePoints(format);
+  const W = format.pageWidth;
+  const H = format.pageHeight;
+  const svgStyle = { width: `${W}mm`, height: `${H}mm` };
+  const textWidth = Math.min(88, W - 24);
   return (
-    <div className="tl-page">
+    <div className="tl-page" style={{ width: `${W}mm`, height: `${H}mm` }}>
       {/* Randmarken beziehen sich auf das Papier, nicht auf den kalibrierten Bogen */}
-      <svg className="tt-svg" viewBox={`0 0 ${SHEET.pageWidth} ${SHEET.pageHeight}`}>
-        <MarginScale />
+      <svg className="tt-svg" style={svgStyle} viewBox={`0 0 ${W} ${H}`}>
+        <MarginScale format={format} />
       </svg>
-      <div className="tl-sheet" style={calibrationStyle(calibration)}>
-        {Array.from({ length: LABELS_PER_SHEET }, (_, i) => {
-          const p = slotPosition(i);
+      <div className="tl-sheet" style={calibrationStyle(calibration, format)}>
+        {Array.from({ length: labelsPerSheet(format) }, (_, i) => {
+          const p = slotPosition(i, format);
           return (
             <div key={i}>
-              <div className="tt-outline" style={{ left: `${p.x}mm`, top: `${p.y}mm` }} />
-              <div className="tt-num" style={{ left: `${p.x + 2.5}mm`, top: `${p.y + 88}mm` }}>
+              <div className="tt-outline" style={{ left: `${p.x}mm`, top: `${p.y}mm`, width: `${format.labelWidth}mm`, height: `${format.labelHeight}mm` }} />
+              <div className="tt-num" style={{ left: `${p.x + 2.5}mm`, top: `${p.y + format.labelHeight - 7}mm` }}>
                 {i + 1}
               </div>
             </div>
           );
         })}
-        <svg className="tt-svg" viewBox={`0 0 ${SHEET.pageWidth} ${SHEET.pageHeight}`}>
+        <svg className="tt-svg" style={svgStyle} viewBox={`0 0 ${W} ${H}`}>
           <Crosshair at={a} name="A" />
           <Crosshair at={b} name="B" />
         </svg>
-        <div className="tt-text" style={{ left: "104mm", top: "22mm", width: "88mm" }}>
+        <div className="tt-text" style={{ left: `${(W - textWidth) / 2}mm`, top: `${Math.min(22, H * 0.1)}mm`, width: `${textWidth}mm` }}>
           <h1>Testbogen Druckerkalibrierung</h1>
           <p className="tt-meta">
-            Drucker: {printerName} · erstellt am {createdAt.toLocaleString("de-DE", { dateStyle: "medium", timeStyle: "short" })}
+            Drucker: {printerName} · Bogen: {formatName} · erstellt am {createdAt.toLocaleString("de-DE", { dateStyle: "medium", timeStyle: "short" })}
             <br />
             Aktuelle Korrektur: X {signed(calibration.offsetX)} mm, Y {signed(calibration.offsetY)} mm, Skalierung{" "}
             {fmt(calibration.scaleX * 100)} % / {fmt(calibration.scaleY * 100)} %
@@ -120,7 +129,8 @@ export function TestSheetPage({
               Bogen so einlegen wie beim normalen Etikettendruck.
             </li>
             <li>
-              Kreuz <b>A</b> gehört zur oberen linken Ecke von Etikett 2, Kreuz <b>B</b> zur oberen linken Ecke von Etikett 12.
+              Kreuz <b>A</b> gehört zur oberen linken Ecke von Etikett {aIndex + 1}, Kreuz <b>B</b> zur oberen linken Ecke von
+              Etikett {bIndex + 1}.
               Ablesen, bei welchem Strich die echte Etikettkante die waagerechte Skala (X) und die senkrechte Skala (Y) schneidet. Jeder
               Strich ist 1 mm.
             </li>

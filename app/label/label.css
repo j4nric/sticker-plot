@@ -2,22 +2,24 @@
  * Etikett und Bogen. Diese Datei wird unverändert in die Browser-Vorschau
  * und in das PDF eingebettet. Alles ist in mm/pt angegeben und setzt eigene
  * Grundwerte, damit die App-Styles (Tailwind) die Vorschau nicht verändern.
+ *
+ * Das Design ist für 45,5 x 95,3 mm entworfen. Andere Etikettgrößen werden
+ * über .tl-box (echte Größe) und eine Skalierung von .tl-label erreicht.
  */
 
 /* ---------- Bogen ---------- */
 .tl-page {
   position: relative;
-  width: 297mm;
-  height: 210mm;
   overflow: hidden;
   background: #fff;
   break-after: page;
 }
 .tl-page:last-child { break-after: auto; }
 .tl-sheet { position: absolute; inset: 0; }
-.tl-slot { position: absolute; width: 45.5mm; height: 95.3mm; }
+.tl-slot { position: absolute; }
 
 /* ---------- Etikett ---------- */
+.tl-box { position: relative; overflow: hidden; }
 .tl-label, .tl-label * {
   box-sizing: border-box;
   margin: 0;
@@ -26,19 +28,26 @@
 }
 .tl-label {
   --tea: #4f9a3f;
+  --tea-ink: #3a7a2e;
   --tea-dark: color-mix(in srgb, var(--tea) 70%, #000);
   --tea-mid: color-mix(in srgb, var(--tea) 45%, #fff);
   --tea-light: color-mix(in srgb, var(--tea) 13%, #fff);
   --tea-liquor: color-mix(in srgb, var(--tea) 45%, #f3dc8e);
+  --line: color-mix(in srgb, var(--tea-ink) 40%, #fff);
   --ink: #1f1f1f;
+  --title-font: "Oswald", "Arial Narrow", sans-serif;
+  --body-font: "Source Serif 4", Georgia, serif;
+  --art-h: 27mm;
+  --title-h: 12.5mm;
 
-  position: relative;
-  width: 45.5mm;
-  height: 95.3mm;
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
   overflow: hidden;
   background: #fff;
   color: var(--ink);
-  font-family: "Source Serif 4", Georgia, serif;
+  font-family: var(--body-font);
   font-size: 7pt;
   font-weight: 400;
   line-height: 1.3;
@@ -49,18 +58,18 @@
   -webkit-font-smoothing: antialiased;
 }
 
-/* doppelte Rahmenlinie */
+/* doppelte Rahmenlinie (Variante klassisch) */
 .tl-frame {
   position: absolute;
   inset: 1.6mm;
-  border: 0.35mm solid var(--tea-dark);
+  border: 0.35mm solid var(--tea-ink);
   border-radius: 2.6mm;
 }
 .tl-frame::after {
   content: "";
   position: absolute;
   inset: 0.7mm;
-  border: 0.15mm solid var(--tea-mid);
+  border: 0.15mm solid var(--line);
   border-radius: 1.9mm;
 }
 
@@ -73,13 +82,16 @@
   align-items: stretch;
 }
 
+/* ---------- Motiv ---------- */
 .tl-art {
   flex: none;
-  height: 27mm;
+  height: var(--art-h);
   display: flex;
   justify-content: center;
+  align-items: center;
 }
-.tl-art svg { width: 32mm; height: 27mm; display: block; overflow: visible; }
+.tl-art svg { width: calc(var(--art-h) * 1.185); height: var(--art-h); display: block; overflow: visible; }
+.tl-art-img { display: block; max-width: 100%; max-height: var(--art-h); object-fit: contain; }
 .tl-c-bg { fill: var(--tea-light); }
 .tl-c-ring { fill: none; stroke: var(--tea-mid); stroke-width: 0.9; }
 .tl-c-dots { fill: none; stroke: var(--tea-mid); stroke-width: 0.9; stroke-dasharray: 0.1 2.6; stroke-linecap: round; }
@@ -89,87 +101,170 @@
 .tl-c-mid { fill: var(--tea-mid); }
 .tl-c-liquor { fill: var(--tea-liquor); }
 .tl-c-handle { fill: none; stroke: var(--tea-dark); stroke-width: 4.2; stroke-linecap: round; }
+.tl-c-spout { fill: none; stroke: var(--tea-dark); stroke-width: 5.5; stroke-linecap: round; }
+.tl-c-band { fill: none; stroke: var(--tea-liquor); stroke-width: 2.2; stroke-linecap: round; opacity: 0.9; }
+.tl-c-stem { fill: none; stroke: var(--tea-dark); stroke-width: 2.2; stroke-linecap: round; }
+.tl-c-segment { fill: none; stroke: #fff; stroke-width: 1.4; opacity: 0.85; }
 .tl-c-shine { fill: none; stroke: #fff; stroke-width: 2.4; stroke-linecap: round; opacity: 0.4; }
+.tl-c-shine-dot { fill: #fff; opacity: 0.55; }
 .tl-c-leaf { fill: #fff; opacity: 0.88; }
 .tl-c-vein { fill: none; stroke: var(--tea); stroke-width: 0.7; stroke-linecap: round; }
+.tl-c-vein-light { fill: none; stroke: #fff; stroke-width: 0.6; opacity: 0.6; }
 
+/* ---------- Texte ---------- */
 .tl-title {
   flex: none;
-  height: 12.5mm;
+  height: var(--title-h);
   margin-top: 1.4mm;
   display: flex;
-  align-items: center;
+  align-items: safe center;
   justify-content: center;
   overflow: hidden;
-  font-family: "Oswald", "Arial Narrow", sans-serif;
+  font-family: var(--title-font);
   font-weight: 500;
   font-size: 15pt;
   line-height: 1.04;
   letter-spacing: 0.035em;
-  text-transform: uppercase;
   color: var(--ink);
   overflow-wrap: normal;
   hyphens: manual;
 }
-.tl-title > span { display: block; }
+.tl-upper .tl-title { text-transform: uppercase; }
+.tl-title > span { display: block; max-width: 100%; }
+.tl-title.tl-serif, .tl-title.tl-playfair { font-weight: 600; letter-spacing: 0.01em; line-height: 1.08; }
+
+/* einzeilige Felder: werden bei Platzmangel verkleinert statt abgeschnitten */
+.tl-line {
+  flex: none;
+  overflow: hidden;
+  white-space: nowrap;
+}
 
 .tl-type {
-  flex: none;
   display: flex;
   align-items: center;
   gap: 1.6mm;
   margin-top: 0.6mm;
   font-weight: 600;
   font-size: 6.4pt;
-  line-height: 1;
+  line-height: 1.15;
   letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: var(--tea-dark);
-  white-space: nowrap;
+  color: var(--tea-ink);
 }
 .tl-type::before, .tl-type::after {
   content: "";
-  flex: 1;
+  flex: 1 0 1.5mm;
   height: 0.2mm;
-  background: var(--tea-mid);
+  background: var(--line);
 }
+
+/* bis zu zwei Zeilen; die Schrift schrumpft, bis es in zwei Zeilen passt */
+.tl-wrap2 {
+  white-space: normal;
+  max-height: 2.45em;
+  line-height: 1.2;
+}
+.tl-type.tl-wrap2 { display: block; letter-spacing: 0.08em; }
+.tl-type.tl-wrap2::before, .tl-type.tl-wrap2::after { display: none; }
+
+.tl-brew {
+  margin-top: 1.5mm;
+  display: flex;
+  justify-content: center;
+  gap: 1.8mm;
+  font-size: 6pt;
+  line-height: 1.2;
+  color: var(--tea-ink);
+}
+.tl-brew span { display: inline-flex; align-items: center; gap: 0.6mm; }
+.tl-brew svg { width: 1em; height: 1em; flex: none; }
+.tl-brew .tl-i { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
 
 .tl-body {
   flex: 1 1 auto;
   min-height: 0;
-  margin-top: 2.4mm;
+  margin-top: 2.2mm;
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  /* bei Überlauf bleibt der Anfang sichtbar */
+  justify-content: safe center;
   gap: 0.45em;
   font-size: 7.4pt;
   line-height: 1.3;
-  hyphens: auto;
+  hyphens: manual;
   overflow-wrap: break-word;
 }
-.tl-desc { font-size: 1em; }
-.tl-ingredients { font-size: 0.84em; line-height: 1.28; color: #3a3a3a; }
-.tl-ingredients b { font-weight: 600; color: var(--tea-dark); }
+.tl-desc { font-size: 1em; white-space: pre-line; }
+.tl-ingredients { font-size: 0.9em; line-height: 1.28; color: #333; }
+.tl-ingredients b { font-weight: 600; color: var(--ink); }
+.tl-ingredients .tl-lead { font-weight: 600; color: var(--tea-ink); }
 
-.tl-footer {
+.tl-meta {
+  margin-top: 1.2mm;
+  font-size: 5.6pt;
+  line-height: 1.25;
+  color: #333;
+}
+.tl-meta .tl-bio { font-weight: 600; color: var(--tea-ink); letter-spacing: 0.04em; }
+
+.tl-codes {
   flex: none;
-  margin-top: 1.6mm;
-  padding-top: 1.3mm;
-  border-top: 0.15mm solid var(--tea-mid);
+  height: 8.5mm;
+  margin-top: 1.4mm;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.9mm;
+  gap: 2mm;
+}
+.tl-codes .tl-ean { height: 8.5mm; width: 21mm; display: flex; }
+.tl-codes .tl-qr { height: 8.5mm; width: 8.5mm; display: flex; }
+.tl-codes svg { width: 100%; height: 100%; display: block; }
+.tl-codes .tl-price { font-weight: 600; font-size: 7pt; line-height: 1.1; white-space: nowrap; color: var(--ink); }
+
+.tl-footer {
+  margin-top: 1.4mm;
+  padding-top: 1.2mm;
+  border-top: 0.15mm solid var(--line);
   font-style: italic;
   font-size: 5.6pt;
-  line-height: 1;
+  line-height: 1.25;
   color: #444;
-  white-space: nowrap;
 }
+.tl-footer .tl-fline { display: flex; align-items: center; justify-content: center; gap: 0.9mm; }
 .tl-footer svg { width: 2.2mm; height: 2.2mm; flex: none; }
 .tl-footer .tl-c-leaf { fill: var(--tea); opacity: 1; }
-.tl-footer .tl-sep { color: var(--tea-mid); }
+.tl-footer .tl-addr { font-size: 0.9em; }
+
+/* ---------- Variante „band“ ---------- */
+.tl-v-band .tl-frame { display: none; }
+.tl-v-band .tl-content { inset: 0; padding: 0 3.6mm 0; }
+.tl-v-band .tl-art {
+  margin: 0 -3.6mm;
+  height: calc(var(--art-h) + 6mm);
+  padding-top: 3mm;
+  background: var(--tea-light);
+  border-bottom: 0.5mm solid var(--tea-ink);
+}
+.tl-v-band .tl-c-bg, .tl-v-band .tl-c-ring, .tl-v-band .tl-c-dots { display: none; }
+.tl-v-band .tl-art-none { height: 4mm; padding: 0; }
+.tl-v-band .tl-footer {
+  margin: 1.6mm -3.6mm 0;
+  padding: 1.8mm 2mm 2.2mm;
+  border-top: 0;
+  background: var(--tea-ink);
+  color: #fff;
+}
+.tl-v-band .tl-footer .tl-c-leaf { fill: #fff; }
+
+/* ---------- Variante „minimal“ ---------- */
+.tl-v-minimal .tl-frame { border-width: 0.15mm; border-color: var(--line); }
+.tl-v-minimal .tl-frame::after { display: none; }
+.tl-v-minimal .tl-c-bg, .tl-v-minimal .tl-c-ring { display: none; }
+.tl-v-minimal .tl-type::before, .tl-v-minimal .tl-type::after { display: none; }
+.tl-v-minimal .tl-type { letter-spacing: 0.22em; font-weight: 400; }
+.tl-v-minimal .tl-footer { border-top-style: dotted; }
 
 /* Hinweis in der Vorschau, wenn Text nicht passt (wird im PDF nicht gesetzt) */
 .tl-preview [data-overflow] { outline: 0.4mm dashed #d33; outline-offset: -0.2mm; }
@@ -177,8 +272,6 @@
 /* ---------- Testbogen ---------- */
 .tt-outline {
   position: absolute;
-  width: 45.5mm;
-  height: 95.3mm;
   border: 0.15mm dashed #999;
   border-radius: 1mm;
 }
@@ -187,7 +280,7 @@
   font: 600 9pt/1 "Oswald", sans-serif;
   color: #bbb;
 }
-.tt-svg { position: absolute; left: 0; top: 0; width: 297mm; height: 210mm; overflow: visible; }
+.tt-svg { position: absolute; left: 0; top: 0; overflow: visible; }
 .tt-text {
   position: absolute;
   font-family: "Source Serif 4", Georgia, serif;

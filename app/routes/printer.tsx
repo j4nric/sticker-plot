@@ -1,6 +1,10 @@
+import { useState } from "react";
 import { data, Form, Link, redirect, useNavigation } from "react-router";
 import { CrosshairHelp } from "~/components/CrosshairHelp";
-import { applyMeasurement, NO_CALIBRATION } from "~/label/geometry";
+import { applyMeasurement, NO_CALIBRATION, referencePoints } from "~/label/geometry";
+import { currentUser } from "~/lib/session.server";
+import { audit } from "~/models/audit.server";
+import { getFormat, listFormats } from "~/models/format.server";
 import { readCalibration, readMeasurement } from "~/lib/validation";
 import {
   deletePrinter,
@@ -24,44 +28,57 @@ export function meta({ loaderData }: Route.MetaArgs) {
   return [{ title: `${loaderData?.printer.name ?? "Drucker"} · Tee-Etiketten` }];
 }
 
-export function loader({ params }: Route.LoaderArgs) {
+export function loader({ params, context }: Route.LoaderArgs) {
+  const user = currentUser(context);
   const printer = printerIdFrom(params);
-  return { printer, printerCount: listPrinters().length };
+  const formats = listFormats().map((f) => ({ ...f, ref: referencePoints(f) }));
+  return { printer, printerCount: listPrinters().length, formats, isAdmin: user.role === "admin" };
 }
 
 type ActionResult = { message?: string; errors?: Record<string, string> };
 
-export async function action({ request, params }: Route.ActionArgs) {
+export async function action({ request, params, context }: Route.ActionArgs) {
+  const user = currentUser(context);
   const printer = printerIdFrom(params);
   const form = await request.formData();
   const intent = form.get("intent");
+  const log = (what: string, summary = "") => audit(user.username, what, "drucker", printer.id, `${printer.name}${summary ? ": " + summary : ""}`);
 
   switch (intent) {
     case "measure": {
       const m = readMeasurement(form);
       if (!m.ok) return data<ActionResult>({ errors: m.errors }, { status: 400 });
-      setCalibration(printer.id, applyMeasurement(toCalibration(printer), m.values));
+      const format = getFormat(Number(form.get("format"))) ?? listFormats()[0]!;
+      const next = applyMeasurement(toCalibration(printer), m.values, format);
+      setCalibration(printer.id, next);
+      log("kalibrieren", `X ${next.offsetX} mm, Y ${next.offsetY} mm, ${(next.scaleX * 100).toFixed(2)} % / ${(next.scaleY * 100).toFixed(2)} %`);
       return { message: "Korrektur übernommen. Zur Kontrolle einen neuen Testbogen drucken." } as ActionResult;
     }
     case "manual": {
       const c = readCalibration(form);
       if (!c.ok) return data<ActionResult>({ errors: c.errors }, { status: 400 });
       setCalibration(printer.id, c.value);
+      log("kalibrieren", "Werte direkt eingetragen");
       return { message: "Werte gespeichert." } as ActionResult;
     }
     case "reset":
       setCalibration(printer.id, NO_CALIBRATION);
+      log("kalibrierung zurücksetzen");
       return { message: "Korrektur zurückgesetzt." } as ActionResult;
     case "rename": {
       const name = String(form.get("name") ?? "").trim();
       if (!name || name.length > 60) return data<ActionResult>({ errors: { name: "Höchstens 60 Zeichen, nicht leer." } }, { status: 400 });
       renamePrinter(printer.id, name);
+      log("umbenennen", name);
       return { message: "Name gespeichert." } as ActionResult;
     }
     case "default":
       setDefaultPrinter(printer.id);
+      log("als standard setzen");
       return { message: "Als Standarddrucker gesetzt." } as ActionResult;
     case "delete":
+      if (user.role !== "admin") throw data("Nur Administratoren dürfen Drucker löschen.", { status: 403 });
+      log("löschen");
       if (!deletePrinter(printer.id)) return data<ActionResult>({ errors: { delete: "Der letzte Drucker kann nicht gelöscht werden." } }, { status: 400 });
       throw redirect("/drucker");
     default:
@@ -88,7 +105,9 @@ function NumberField({ name, label, defaultValue, error, suffix }: { name: strin
 }
 
 export default function PrinterPage({ loaderData, actionData }: Route.ComponentProps) {
-  const { printer, printerCount } = loaderData;
+  const { printer, printerCount, formats, isAdmin } = loaderData;
+  const [formatId, setFormatId] = useState(formats[0]!.id);
+  const format = formats.find((f) => f.id === formatId) ?? formats[0]!;
   const navigation = useNavigation();
   const busy = navigation.state !== "idle";
   const errors = actionData?.errors ?? {};
@@ -115,7 +134,21 @@ export default function PrinterPage({ loaderData, actionData }: Route.ComponentP
             Den Testbogen auf einen <b>leeren Etikettenbogen</b> drucken, in tatsächlicher Größe (100 %). Der Bogen enthält die aktuelle
             Korrektur, so lässt sich jede Einstellung direkt überprüfen.
           </p>
-          <a href={`/drucker/${printer.id}/testbogen.pdf`} target="_blank" rel="noreferrer" className="btn-primary">
+          {formats.length > 1 ? (
+            <div>
+              <label className="field-label" htmlFor="format-select">
+                Bogenformat
+              </label>
+              <select id="format-select" value={formatId} onChange={(e) => setFormatId(Number(e.target.value))} className="field-input">
+                {formats.map((f) => (
+                  <option key={f.id} value={f.id}>
+                    {f.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : null}
+          <a href={`/drucker/${printer.id}/testbogen.pdf?format=${format.id}`} target="_blank" rel="noreferrer" className="btn-primary">
             Testbogen als PDF öffnen
           </a>
           <div className="rounded-lg bg-stone-50 p-3 text-sm text-stone-700">
@@ -140,13 +173,14 @@ export default function PrinterPage({ loaderData, actionData }: Route.ComponentP
           {/* key: nach jeder Änderung leeren, damit Werte nicht doppelt angewendet werden */}
           <Form method="post" className="space-y-4" key={`m-${printer.offsetX}/${printer.offsetY}/${printer.scaleX}/${printer.scaleY}`}>
             <input type="hidden" name="intent" value="measure" />
+            <input type="hidden" name="format" value={format.id} />
             <fieldset className="grid grid-cols-2 gap-4">
-              <legend className="mb-2 text-sm font-semibold text-stone-800">Kreuz A (oben, Etikett 2)</legend>
+              <legend className="mb-2 text-sm font-semibold text-stone-800">Kreuz A (Etikett {format.ref.aIndex + 1})</legend>
               <NumberField name="ax" label="X waagerecht" suffix="mm" error={errors.ax} />
               <NumberField name="ay" label="Y senkrecht" suffix="mm" error={errors.ay} />
             </fieldset>
             <fieldset className="grid grid-cols-2 gap-4">
-              <legend className="mb-2 text-sm font-semibold text-stone-800">Kreuz B (unten rechts, Etikett 12)</legend>
+              <legend className="mb-2 text-sm font-semibold text-stone-800">Kreuz B (Etikett {format.ref.bIndex + 1})</legend>
               <NumberField name="bx" label="X waagerecht" suffix="mm" error={errors.bx} />
               <NumberField name="by" label="Y senkrecht" suffix="mm" error={errors.by} />
             </fieldset>
@@ -201,7 +235,7 @@ export default function PrinterPage({ loaderData, actionData }: Route.ComponentP
               </button>
             </Form>
           ) : null}
-          {printerCount > 1 ? (
+          {printerCount > 1 && isAdmin ? (
             <Form method="post" onSubmit={(e) => !confirm(`Drucker „${printer.name}“ löschen?`) && e.preventDefault()}>
               <input type="hidden" name="intent" value="delete" />
               <button className="btn-danger" disabled={busy}>

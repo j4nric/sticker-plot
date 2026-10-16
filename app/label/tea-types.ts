@@ -10,6 +10,7 @@ export const TEA_TYPES: { name: string; color: string }[] = [
   { name: "Früchtetee", color: "#c2185b" },
   { name: "Chai", color: "#a0582d" },
   { name: "Mate", color: "#7c8a2e" },
+  { name: "Honeybush", color: "#b4682f" },
 ];
 
 export const DEFAULT_TEA_COLOR = "#4f9a3f";

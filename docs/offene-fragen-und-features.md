@@ -1,5 +1,9 @@
 # Offene Fragen, Grenzfälle und Feature-Ideen
 
+> **Erledigt:** Die Fragen sind beantwortet bzw. entschieden, die Features umgesetzt. Den aktuellen
+> Stand beschreibt [entscheidungen-und-umsetzung.md](entscheidungen-und-umsetzung.md). Dieses
+> Dokument bleibt als Messgrundlage erhalten.
+
 Stand: 16.10.2026, nach dem MVP. Die Grenzfälle in Abschnitt 1 sind mit dem echten PDF-Renderer
 (Chromium auf dem Server) gemessen, nicht geschätzt.
 

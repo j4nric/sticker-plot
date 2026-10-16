@@ -1,4 +1,6 @@
 import { data, Form, Link, redirect } from "react-router";
+import { currentUser } from "~/lib/session.server";
+import { audit } from "~/models/audit.server";
 import { createPrinter, listPrinters } from "~/models/printer.server";
 import type { Route } from "./+types/printers";
 
@@ -10,11 +12,13 @@ export function loader() {
   return { printers: listPrinters() };
 }
 
-export async function action({ request }: Route.ActionArgs) {
+export async function action({ request, context }: Route.ActionArgs) {
+  const user = currentUser(context);
   const form = await request.formData();
   const name = String(form.get("name") ?? "").trim();
   if (!name || name.length > 60) return data({ error: "Bitte einen Namen mit höchstens 60 Zeichen eingeben." }, { status: 400 });
   const printer = createPrinter(name);
+  audit(user.username, "anlegen", "drucker", printer.id, name);
   throw redirect(`/drucker/${printer.id}`);
 }
 

@@ -14,6 +14,11 @@
 #   5. Container bauen und starten, tägliche Datensicherung einrichten
 #
 # Erneut ausführen = Update auf den neuesten Stand des Branches.
+#
+# Ohne Rückfragen (z. B. für automatische Updates per GitHub Actions):
+#   NONINTERACTIVE=1 bash install-server.sh <domain>
+# Beim ersten Mal dann APP_PASSWORD=... mitgeben; ein belegter Port 80/443
+# wird nur mit STOP_WEBSERVER=1 freigemacht.
 
 set -euo pipefail
 
@@ -21,6 +26,8 @@ REPO_URL="${REPO_URL:-https://github.com/j4nric/sticker-plot.git}"
 BRANCH="${BRANCH:-claude/tea-label-sticker-generator-379hjt}"
 APP_DIR="${APP_DIR:-/opt/sticker-plot}"
 DOMAIN="${1:-${DOMAIN:-}}"
+INTERACTIVE=1
+if [[ -n "${NONINTERACTIVE:-}" || ! -t 0 ]]; then INTERACTIVE=0; fi
 
 # Liegt das Skript im App-Ordner, würde "git reset" es während der Ausführung
 # überschreiben. Deshalb zuerst eine Kopie anlegen und diese ausführen.
@@ -50,6 +57,11 @@ public_ipv4() {
     | head -n1 || true
 }
 
+if [[ -z "$DOMAIN" && $INTERACTIVE -eq 0 ]]; then
+  IP="$(public_ipv4)"
+  [[ -n "$IP" ]] || fail "Ohne Rückfragen muss eine Domain angegeben werden."
+  DOMAIN="tee-${IP//./-}.sslip.io"
+fi
 if [[ -z "$DOMAIN" ]]; then
   IP="$(public_ipv4)"
   if [[ -n "$IP" ]]; then
@@ -105,7 +117,11 @@ if ! command -v caddy >/dev/null 2>&1; then
         echo
         echo "Auf dem Server läuft der Webserver '$svc'. Caddy braucht die Ports 80 und 443 für HTTPS."
         echo "Abschalten nur, wenn auf diesem Server KEINE andere Website über '$svc' läuft."
-        read -rp "'$svc' stoppen und dauerhaft deaktivieren? [j/N] " ANSWER
+        if [[ $INTERACTIVE -eq 1 ]]; then
+          read -rp "'$svc' stoppen und dauerhaft deaktivieren? [j/N] " ANSWER
+        else
+          ANSWER="${STOP_WEBSERVER:+j}"
+        fi
         if [[ "$ANSWER" =~ ^[jJyY] ]]; then
           systemctl disable --now "$svc"
           info "'$svc' gestoppt und deaktiviert"
@@ -148,11 +164,18 @@ cd "$APP_DIR"
 # ---------------------------------------------------------------- .env
 if [[ ! -f .env ]]; then
   info "Konfiguration anlegen"
-  while true; do
-    read -rsp "Laden-Passwort für die Anmeldung festlegen (mind. 8 Zeichen): " PW; echo
+  if [[ $INTERACTIVE -eq 0 ]]; then
+    APP_PASSWORD="${APP_PASSWORD:-}"
+    [[ ${#APP_PASSWORD} -ge 8 ]] || fail "Ohne Rückfragen bitte APP_PASSWORD (mind. 8 Zeichen) mitgeben."
+    PW="$APP_PASSWORD"
+    PW2="$APP_PASSWORD"
+  fi
+  while [[ -z "${PW:-}" ]] || [[ "$PW" != "${PW2:-}" ]] || [[ ${#PW} -lt 8 ]]; do
+    read -rsp "Passwort für den Benutzer 'admin' festlegen (mind. 8 Zeichen): " PW; echo
     read -rsp "Passwort wiederholen: " PW2; echo
     [[ ${#PW} -ge 8 && "$PW" == "$PW2" ]] && break
     warn "Passwörter stimmen nicht überein oder sind zu kurz."
+    PW=""
   done
   umask 077
   {
@@ -174,6 +197,9 @@ if [[ $SETUP_CADDY -eq 1 ]]; then
   cat > /etc/caddy/conf.d/sticker-plot.caddy <<EOF
 $DOMAIN {
 	encode gzip
+	request_body {
+		max_size 64MB
+	}
 	reverse_proxy 127.0.0.1:3000
 }
 EOF
@@ -222,5 +248,8 @@ if [[ $SETUP_CADDY -eq 1 ]]; then
 else
   echo "Die App läuft auf http://127.0.0.1:3000 (Reverse Proxy noch einrichten)."
 fi
+echo "Anmeldung:       Benutzer 'admin' mit dem Passwort aus APP_PASSWORD (Datei $APP_DIR/.env)."
+echo "                 Weitere Zugänge für das Personal unter Verwaltung → Benutzer anlegen."
+echo "PDF-Import:      sudo bash $APP_DIR/scripts/import-pdfs.sh <ordner-mit-pdfs>"
 echo "Update später:   sudo bash $APP_DIR/scripts/install-server.sh $DOMAIN"
 echo "Logs:            cd $APP_DIR && docker compose logs -f app"

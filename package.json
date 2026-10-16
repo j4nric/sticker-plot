@@ -2,29 +2,37 @@
   "name": "sticker-plot",
   "private": true,
   "type": "module",
-  "description": "Generator für Tee-Etikettenbögen (A4 quer, 6 x 2) als druckfertiges PDF",
+  "description": "Generator f\u00fcr Tee-Etikettenb\u00f6gen (A4 quer, 6 x 2) als druckfertiges PDF",
   "engines": {
     "node": ">=22"
   },
   "scripts": {
-    "build": "react-router build",
+    "build": "react-router build && vite build -c vite.cli.config.ts",
     "dev": "react-router dev",
     "start": "react-router-serve ./build/server/index.js",
     "typecheck": "react-router typegen && tsc",
     "test": "vitest run",
     "db:generate": "drizzle-kit generate",
-    "backup": "node scripts/backup.mjs"
+    "backup": "node scripts/backup.mjs",
+    "import:pdfs": "node build/cli/import-pdfs.js"
   },
   "dependencies": {
+    "@napi-rs/canvas": "^1.0.11",
     "@react-router/node": "^8.4.0",
     "@react-router/serve": "^8.4.0",
+    "@tesseract.js-data/deu": "^1.0.0",
     "better-sqlite3": "^13.0.3",
+    "bwip-js": "^4.11.4",
     "drizzle-orm": "^0.45.4",
+    "hyphen": "^1.14.1",
     "isbot": "^5.2.2",
+    "pdf-lib": "^1.17.1",
+    "pdfjs-dist": "^6.4.299",
     "playwright-core": "^1.64.1",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "react-router": "^8.4.0",
+    "tesseract.js": "^7.0.0",
     "zod": "^4.6.7"
   },
   "devDependencies": {

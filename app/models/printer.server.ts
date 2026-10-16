@@ -37,6 +37,10 @@ export function setCalibration(id: number, c: Calibration) {
     .run();
 }
 
+export function setNextSlot(id: number, slot: number) {
+  db().update(printers).set({ nextSlot: Math.max(1, Math.floor(slot)) }).where(eq(printers.id, id)).run();
+}
+
 export function setDefaultPrinter(id: number) {
   db().transaction((tx) => {
     tx.update(printers).set({ isDefault: false }).where(ne(printers.id, id)).run();

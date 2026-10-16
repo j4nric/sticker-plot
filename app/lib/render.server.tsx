@@ -1,14 +1,13 @@
-import { readFileSync, existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import type { ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { fontFaceCss, LABEL_FONTS, type LabelFont } from "~/label/fonts";
-import { layoutPages, type Calibration } from "~/label/geometry";
-import { Label, SheetPage, type LabelData, type ShopInfo } from "~/label/Label";
+import { DEFAULT_SHEET, labelsPerSheet, layoutSequence, type Calibration, type SheetGeometry } from "~/label/geometry";
+import { Label, SheetPage, type LabelContent, type PrintExtras, type ShopInfo } from "~/label/Label";
 import labelCss from "~/label/label.css?raw";
+import type { TemplateParams } from "~/label/template";
 import { TestSheetPage } from "~/label/TestSheet";
-
-const PAGE_CSS = "@page{size:297mm 210mm;margin:0}html,body{margin:0;padding:0;background:#fff}";
 
 let embeddedFontCss: string | undefined;
 
@@ -28,8 +27,9 @@ function pdfFontCss(): string {
   return embeddedFontCss;
 }
 
-export function buildDocument(body: ReactElement): string {
-  const css = PAGE_CSS + pdfFontCss() + labelCss;
+export function buildDocument(body: ReactElement, page: Pick<SheetGeometry, "pageWidth" | "pageHeight"> = DEFAULT_SHEET): string {
+  const pageCss = `@page{size:${page.pageWidth}mm ${page.pageHeight}mm;margin:0}html,body{margin:0;padding:0;background:#fff}`;
+  const css = pageCss + pdfFontCss() + labelCss;
   return (
     "<!doctype html>" +
     renderToStaticMarkup(
@@ -44,29 +44,51 @@ export function buildDocument(body: ReactElement): string {
   );
 }
 
-export function labelSheetsHtml(opts: {
-  data: LabelData;
+export interface SheetItem {
+  content: LabelContent;
+  template: TemplateParams;
+}
+
+export interface SheetJob {
+  items: SheetItem[];
   shop: ShopInfo;
+  format?: SheetGeometry;
   calibration: Calibration;
-  count: number;
   start: number;
-}): string {
-  const pages = layoutPages(opts.count, opts.start);
+  extras?: PrintExtras;
+}
+
+/** Bögen für eine Folge von Etiketten (eine Sorte oder gemischt). */
+export function labelSheetsHtml(job: SheetJob): string {
+  const format = job.format ?? DEFAULT_SHEET;
+  const pages = layoutSequence(job.items, job.start, labelsPerSheet(format));
   return buildDocument(
     <>
       {pages.map((slots, p) => (
         <SheetPage
           key={p}
-          calibration={opts.calibration}
-          slots={slots.map((filled) => (filled ? <Label data={opts.data} shop={opts.shop} /> : null))}
+          format={format}
+          calibration={job.calibration}
+          slots={slots.map((item) =>
+            item ? <Label data={item.content} template={item.template} shop={job.shop} size={format} extras={job.extras} /> : null,
+          )}
         />
       ))}
     </>,
+    format,
   );
 }
 
-export function testSheetHtml(opts: { calibration: Calibration; printerName: string; createdAt?: Date }): string {
+export function testSheetHtml(opts: { calibration: Calibration; printerName: string; createdAt?: Date; format?: SheetGeometry; formatName?: string }): string {
+  const format = opts.format ?? DEFAULT_SHEET;
   return buildDocument(
-    <TestSheetPage calibration={opts.calibration} printerName={opts.printerName} createdAt={opts.createdAt ?? new Date()} />,
+    <TestSheetPage
+      calibration={opts.calibration}
+      printerName={opts.printerName}
+      createdAt={opts.createdAt ?? new Date()}
+      format={format}
+      formatName={opts.formatName}
+    />,
+    format,
   );
 }
