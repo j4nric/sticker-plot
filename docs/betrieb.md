@@ -39,9 +39,61 @@ ausführen. Die Daten bleiben erhalten.
 Für ein Update dasselbe Skript mit derselben Domain erneut ausführen:
 `bash /opt/sticker-plot/scripts/install-server.sh <domain>`
 
-Läuft auf dem Server schon ein anderer Webserver auf Port 80/443, installiert das Skript Caddy
-nicht. Die App ist dann unter `127.0.0.1:3000` erreichbar und wird im vorhandenen Webserver als
-Reverse Proxy eingetragen.
+Läuft auf dem Server schon ein anderer Webserver auf Port 80/443, zeigt das Skript an, welcher es
+ist. Bei Apache oder nginx fragt es, ob er abgeschaltet werden soll. Das ist richtig, wenn der
+Server nur für diese App da ist. Läuft dort noch eine andere Website, die Frage verneinen und den
+vorhandenen Webserver wie unten beschrieben einrichten.
+
+### Wer belegt Port 80/443?
+
+```bash
+ss -ltnp '( sport = :80 or sport = :443 )'
+```
+
+Der Name in `users:(("…"` ist das Programm. Wird der Server nur für die App genutzt, den
+Webserver abschalten und das Skript erneut ausführen, z. B. für Apache:
+
+```bash
+systemctl disable --now apache2
+bash install-server.sh <domain>
+```
+
+### Vorhandener Webserver als Reverse Proxy
+
+Nur nötig, wenn Apache oder nginx weiterlaufen sollen. Die App lauscht auf `127.0.0.1:3000`.
+
+**nginx** (`/etc/nginx/sites-available/sticker-plot`, danach nach `sites-enabled` verlinken):
+
+```nginx
+server {
+    listen 80;
+    server_name tee-62-83-23-90.sslip.io;
+    client_max_body_size 2m;
+    location / {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 120s;
+    }
+}
+```
+
+**Apache** (`a2enmod proxy proxy_http headers`, dann eine Site-Datei):
+
+```apache
+<VirtualHost *:80>
+    ServerName tee-62-83-23-90.sslip.io
+    ProxyPreserveHost On
+    ProxyPass / http://127.0.0.1:3000/
+    ProxyPassReverse / http://127.0.0.1:3000/
+    ProxyTimeout 120
+</VirtualHost>
+```
+
+Anschließend ein HTTPS-Zertifikat holen, z. B. mit
+`apt install certbot python3-certbot-nginx && certbot --nginx -d <domain>` (bzw.
+`python3-certbot-apache` und `--apache`). Ohne HTTPS funktioniert der Login nicht.
 
 ## Manuelle Installation
 

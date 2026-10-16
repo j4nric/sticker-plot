@@ -22,6 +22,15 @@ BRANCH="${BRANCH:-claude/tea-label-sticker-generator-379hjt}"
 APP_DIR="${APP_DIR:-/opt/sticker-plot}"
 DOMAIN="${1:-${DOMAIN:-}}"
 
+# Liegt das Skript im App-Ordner, würde "git reset" es während der Ausführung
+# überschreiben. Deshalb zuerst eine Kopie anlegen und diese ausführen.
+SELF="$(readlink -f "${BASH_SOURCE[0]}" 2>/dev/null || true)"
+if [[ -n "$SELF" && "$SELF" == "$APP_DIR"/* && -z "${STICKER_PLOT_COPY:-}" ]]; then
+  COPY="$(mktemp /tmp/install-server.XXXXXX.sh)"
+  cp "$SELF" "$COPY"
+  STICKER_PLOT_COPY=1 exec bash "$COPY" "$@"
+fi
+
 info() { printf '\n\033[1;32m==> %s\033[0m\n' "$*"; }
 warn() { printf '\033[1;33mHinweis: %s\033[0m\n' "$*"; }
 fail() { printf '\033[1;31mFehler: %s\033[0m\n' "$*" >&2; exit 1; }
@@ -80,16 +89,39 @@ docker compose version >/dev/null 2>&1 || fail "Docker Compose fehlt. Bitte das 
 systemctl enable --now docker >/dev/null
 
 # ---------------------------------------------------------------- Caddy
-port_in_use_by_other() {
-  ss -ltnpH "( sport = :$1 )" 2>/dev/null | grep -v caddy | grep -q .
+# Programme (außer Caddy), die Port 80 oder 443 belegen
+port_blockers() {
+  ss -ltnpH '( sport = :80 or sport = :443 )' 2>/dev/null \
+    | grep -oP 'users:\(\("\K[^"]+' | sort -u | grep -vx caddy | tr '\n' ' ' || true
 }
 SETUP_CADDY=1
 if ! command -v caddy >/dev/null 2>&1; then
-  if port_in_use_by_other 80 || port_in_use_by_other 443; then
-    warn "Port 80 oder 443 ist bereits belegt (anderer Webserver?). Caddy wird nicht installiert."
-    warn "Die App läuft dann nur auf 127.0.0.1:3000; den vorhandenen Webserver als Reverse Proxy darauf zeigen lassen."
-    SETUP_CADDY=0
-  else
+  BLOCKERS="$(port_blockers)"
+  if [[ -n "${BLOCKERS// /}" ]]; then
+    warn "Port 80/443 ist belegt durch: $BLOCKERS"
+    ss -ltnp '( sport = :80 or sport = :443 )' 2>/dev/null || true
+    for svc in apache2 nginx lighttpd httpd; do
+      if [[ " $BLOCKERS " == *" $svc "* ]] && systemctl cat "$svc.service" >/dev/null 2>&1; then
+        echo
+        echo "Auf dem Server läuft der Webserver '$svc'. Caddy braucht die Ports 80 und 443 für HTTPS."
+        echo "Abschalten nur, wenn auf diesem Server KEINE andere Website über '$svc' läuft."
+        read -rp "'$svc' stoppen und dauerhaft deaktivieren? [j/N] " ANSWER
+        if [[ "$ANSWER" =~ ^[jJyY] ]]; then
+          systemctl disable --now "$svc"
+          info "'$svc' gestoppt und deaktiviert"
+        fi
+      fi
+    done
+    sleep 1
+    BLOCKERS="$(port_blockers)"
+    if [[ -n "${BLOCKERS// /}" ]]; then
+      warn "Port 80/443 ist weiterhin belegt ($BLOCKERS). Caddy wird nicht installiert."
+      warn "Die App läuft auf 127.0.0.1:3000. Den vorhandenen Webserver als Reverse Proxy einrichten,"
+      warn "siehe docs/betrieb.md, Abschnitt 'Vorhandener Webserver'."
+      SETUP_CADDY=0
+    fi
+  fi
+  if [[ $SETUP_CADDY -eq 1 ]]; then
     info "Caddy installieren"
     install -d -m 0755 /usr/share/keyrings
     curl -fsSL https://dl.cloudsmith.io/public/caddy/stable/gpg.key \
@@ -171,7 +203,7 @@ docker compose up -d --build
 
 info "Auf Start warten"
 for _ in $(seq 1 60); do
-  if curl -fsS -o /dev/null http://127.0.0.1:3000/login; then READY=1; break; fi
+  if curl -fs -o /dev/null http://127.0.0.1:3000/login; then READY=1; break; fi
   sleep 2
 done
 [[ "${READY:-0}" -eq 1 ]] || fail "Die App antwortet nicht. Logs ansehen mit: cd $APP_DIR && docker compose logs app"
