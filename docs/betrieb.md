@@ -8,7 +8,32 @@ Die App läuft als Docker-Container. Chromium für die PDF-Erzeugung ist im Imag
 - mindestens 1 GB RAM, empfohlen 2 GB (Chromium braucht beim Rendern 200 bis 400 MB)
 - eine (Sub-)Domain, die auf den Server zeigt, für HTTPS
 
-## Erstinstallation
+## Schnellinstallation mit Skript (empfohlen)
+
+Für einen Debian- oder Ubuntu-Server, z. B. einen netcup vServer.
+
+1. **DNS-Eintrag anlegen.** Im netcup Customer Control Panel unter *Domains* die Domain wählen,
+   dann *DNS* öffnen und einen A-Record anlegen, z. B. Host `etiketten`, Ziel = IPv4 des Servers
+   (steht im Server Control Panel). Bis der Eintrag wirkt, können einige Minuten vergehen.
+2. **Per SSH als root auf den Server** einloggen und ausführen:
+
+   ```bash
+   curl -fsSL https://raw.githubusercontent.com/j4nric/sticker-plot/claude/tea-label-sticker-generator-379hjt/scripts/install-server.sh -o install-server.sh
+   bash install-server.sh etiketten.teetreffpunkt.de
+   ```
+
+   Das Skript fragt einmal nach dem Laden-Passwort. Es installiert Docker und Caddy, richtet HTTPS
+   ein, startet die App und legt eine tägliche Datensicherung an (Aufbewahrung 30 Tage).
+3. **Aufrufen:** `https://etiketten.teetreffpunkt.de`
+
+Für ein Update dasselbe Skript erneut ausführen:
+`bash /opt/sticker-plot/scripts/install-server.sh etiketten.teetreffpunkt.de`
+
+Läuft auf dem Server schon ein anderer Webserver auf Port 80/443, installiert das Skript Caddy
+nicht. Die App ist dann unter `127.0.0.1:3000` erreichbar und wird im vorhandenen Webserver als
+Reverse Proxy eingetragen.
+
+## Manuelle Installation
 
 ```bash
 git clone https://github.com/j4nric/sticker-plot.git
