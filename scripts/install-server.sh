@@ -4,6 +4,7 @@
 # Debian- oder Ubuntu-Server (z. B. netcup vServer / Root-Server).
 #
 #   sudo bash install-server.sh etiketten.example.de
+#   sudo bash install-server.sh          # ohne Domain: kostenloser sslip.io-Name
 #
 # Was das Skript macht:
 #   1. Docker und Caddy (Webserver mit automatischem HTTPS) installieren
@@ -32,8 +33,25 @@ fail() { printf '\033[1;31mFehler: %s\033[0m\n' "$*" >&2; exit 1; }
 [[ "${ID:-}" == "debian" || "${ID:-}" == "ubuntu" || "${ID_LIKE:-}" == *debian* ]] \
   || fail "Dieses Skript unterstützt Debian und Ubuntu (gefunden: ${PRETTY_NAME:-unbekannt})."
 
+public_ipv4() {
+  # erste öffentliche IPv4 des Servers (netcup vergibt sie direkt am Interface)
+  hostname -I 2>/dev/null | tr ' ' '\n' \
+    | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' \
+    | grep -vE '^(10\.|127\.|169\.254\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[01])\.|100\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\.)' \
+    | head -n1 || true
+}
+
 if [[ -z "$DOMAIN" ]]; then
-  read -rp "Domain für die App (z. B. etiketten.teetreffpunkt.de): " DOMAIN
+  IP="$(public_ipv4)"
+  if [[ -n "$IP" ]]; then
+    # Kostenloser Name ohne Anmeldung: sslip.io löst auf die enthaltene IP auf
+    SUGGESTION="tee-${IP//./-}.sslip.io"
+    echo "Ohne eigene Domain kann die App unter einem kostenlosen sslip.io-Namen laufen."
+    read -rp "Domain für die App [Enter = $SUGGESTION]: " DOMAIN
+    DOMAIN="${DOMAIN:-$SUGGESTION}"
+  else
+    read -rp "Domain für die App (z. B. etiketten.teetreffpunkt.de): " DOMAIN
+  fi
 fi
 [[ "$DOMAIN" =~ ^[A-Za-z0-9.-]+\.[A-Za-z]{2,}$ ]] || fail "Ungültige Domain: '$DOMAIN'"
 
