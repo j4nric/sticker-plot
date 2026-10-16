@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Tee-Etiketten Bogen</title>
+<style>
+  /* ---- Bogen- und Rastergeometrie (aus dem Original-PDF gemessen, am echten Bogen verifizieren) ---- */
+  :root {
+    --sheet-w: 297mm;  --sheet-h: 210mm;
+    --label-w: 45.5mm; --label-h: 95.3mm;
+    --origin-x: 0.5mm; --origin-y: 6.3mm;      /* linke obere Ecke des ersten Etiketts */
+    --pitch-x: 50mm;   --pitch-y: 103.1mm;      /* Abstand von Etikett zu Etikett */
+    /* ---- Druckerkalibrierung: pro Drucker gespeichert, aus Testdruck ermittelt ---- */
+    --cal-x: 0mm; --cal-y: 0mm; --cal-scale: 1;
+    /* ---- Sortenabhängige Farbe (hier: Grüner Tee) ---- */
+    --tea-color: #4caf50;
+  }
+  @page { size: var(--sheet-w) var(--sheet-h); margin: 0; }
+  html, body { margin: 0; padding: 0; }
+  body { width: var(--sheet-w); height: var(--sheet-h); position: relative; overflow: hidden;
+         font-family: "DejaVu Serif", Georgia, serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .sheet { position: absolute; inset: 0;
+           transform-origin: 50% 50%;
+           transform: translate(var(--cal-x), var(--cal-y)) scale(var(--cal-scale)); }
+  .label { position: absolute; width: var(--label-w); height: var(--label-h);
+           box-sizing: border-box; border: 0.3mm solid #333; border-radius: 2mm;
+           padding: 3mm 2.5mm; display: flex; flex-direction: column; align-items: center; text-align: center; }
+  /* 6 Spalten x 2 Zeilen, Position rein aus Rasterparametern berechnet */
+  .label:nth-child(6n+1) { left: calc(var(--origin-x) + 0 * var(--pitch-x)); }
+  .label:nth-child(6n+2) { left: calc(var(--origin-x) + 1 * var(--pitch-x)); }
+  .label:nth-child(6n+3) { left: calc(var(--origin-x) + 2 * var(--pitch-x)); }
+  .label:nth-child(6n+4) { left: calc(var(--origin-x) + 3 * var(--pitch-x)); }
+  .label:nth-child(6n+5) { left: calc(var(--origin-x) + 4 * var(--pitch-x)); }
+  .label:nth-child(6n+6) { left: calc(var(--origin-x) + 5 * var(--pitch-x)); }
+  .label:nth-child(-n+6)  { top: var(--origin-y); }
+  .label:nth-child(n+7)   { top: calc(var(--origin-y) + var(--pitch-y)); }
+
+  .cup { width: 34mm; height: 26mm; color: var(--tea-color); }
+  .title { font-family: "DejaVu Sans Condensed", "Arial Narrow", sans-serif; font-weight: bold; font-size: 13pt;
+           letter-spacing: 0.3mm; margin-top: 3mm; border: 0.25mm solid #333; padding: 1mm 2mm; }
+  .type  { font-size: 9pt; letter-spacing: 0.4mm; margin-top: 2mm; text-transform: uppercase; }
+  hr { width: 80%; border: 0; border-top: 0.2mm solid #999; margin: 2mm 0; }
+  .desc { font-size: 7pt; line-height: 1.3; hyphens: auto; }
+  .ingredients { font-size: 5.5pt; line-height: 1.25; color: #333; margin-top: auto; }
+  .footer { font-size: 5.5pt; margin-top: 1.5mm; }
+</style>
+</head>
+<body>
+<div class="sheet" id="sheet"></div>
+
+<template id="label-tpl">
+  <div class="label">
+    <svg class="cup" viewBox="0 0 100 76" aria-hidden="true">
+      <ellipse cx="50" cy="60" rx="46" ry="12" fill="currentColor" opacity="0.35"/>
+      <path d="M14 22 h56 v24 a28 28 0 0 1 -56 0 z" fill="currentColor"/>
+      <path d="M70 28 h10 a10 10 0 0 1 0 20 h-10" fill="none" stroke="currentColor" stroke-width="6"/>
+      <ellipse cx="42" cy="22" rx="28" ry="6" fill="#fff" opacity="0.8"/>
+    </svg>
+    <div class="title"></div>
+    <div class="type"></div>
+    <hr>
+    <div class="desc"></div>
+    <div class="ingredients"></div>
+    <div class="footer">Tee-Treff-Punkt · www.teetreffpunkt.de</div>
+  </div>
+</template>
+
+<script>
+  // Daten kommen später aus Formular/Datenbank; hier Beispiel über URL-Parameter oder Default.
+  const params = new URLSearchParams(location.search);
+  const data = {
+    title: params.get('title') || 'China Sencha',
+    type: params.get('type') || 'Grüner Tee',
+    desc: params.get('desc') || 'Ein Grüntee mit mittelgrünem, flachgepresstem Blatt und einer feinherben, leicht heuigen Note, der in Asien besonders beliebt ist und einen hellgelben, duftigen Aufguss bietet.',
+    ingredients: params.get('ingredients') || 'Zutaten: Grüner Tee (China)',
+    color: params.get('color'),
+  };
+  if (data.color) document.documentElement.style.setProperty('--tea-color', data.color);
+  for (const k of ['cal-x','cal-y','cal-scale']) if (params.get(k)) document.documentElement.style.setProperty('--'+k, params.get(k));
+  const sheet = document.getElementById('sheet');
+  const tpl = document.getElementById('label-tpl');
+  for (let i = 0; i < 12; i++) {
+    const node = tpl.content.cloneNode(true);
+    node.querySelector('.title').textContent = data.title;
+    node.querySelector('.type').textContent = data.type;
+    node.querySelector('.desc').textContent = data.desc;
+    node.querySelector('.ingredients').textContent = data.ingredients;
+    sheet.appendChild(node);
+  }
+</script>
+</body>
+</html>

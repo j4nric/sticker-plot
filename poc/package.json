@@ -1,0 +1,13 @@
+{
+  "name": "sticker-plot-poc",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Proof of Concept: Tee-Etikettenbogen HTML -> PDF über headless Chromium",
+  "type": "module",
+  "scripts": {
+    "render": "node render.mjs out/sheet.pdf"
+  },
+  "dependencies": {
+    "playwright-core": "^1.64.1"
+  }
+}
