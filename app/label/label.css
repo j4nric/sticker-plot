@@ -1,0 +1,199 @@
+/*
+ * Etikett und Bogen. Diese Datei wird unverändert in die Browser-Vorschau
+ * und in das PDF eingebettet. Alles ist in mm/pt angegeben und setzt eigene
+ * Grundwerte, damit die App-Styles (Tailwind) die Vorschau nicht verändern.
+ */
+
+/* ---------- Bogen ---------- */
+.tl-page {
+  position: relative;
+  width: 297mm;
+  height: 210mm;
+  overflow: hidden;
+  background: #fff;
+  break-after: page;
+}
+.tl-page:last-child { break-after: auto; }
+.tl-sheet { position: absolute; inset: 0; }
+.tl-slot { position: absolute; width: 45.5mm; height: 95.3mm; }
+
+/* ---------- Etikett ---------- */
+.tl-label, .tl-label * {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  border: 0 solid;
+}
+.tl-label {
+  --tea: #4f9a3f;
+  --tea-dark: color-mix(in srgb, var(--tea) 70%, #000);
+  --tea-mid: color-mix(in srgb, var(--tea) 45%, #fff);
+  --tea-light: color-mix(in srgb, var(--tea) 13%, #fff);
+  --tea-liquor: color-mix(in srgb, var(--tea) 45%, #f3dc8e);
+  --ink: #1f1f1f;
+
+  position: relative;
+  width: 45.5mm;
+  height: 95.3mm;
+  overflow: hidden;
+  background: #fff;
+  color: var(--ink);
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: 7pt;
+  font-weight: 400;
+  line-height: 1.3;
+  letter-spacing: 0;
+  text-align: center;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* doppelte Rahmenlinie */
+.tl-frame {
+  position: absolute;
+  inset: 1.6mm;
+  border: 0.35mm solid var(--tea-dark);
+  border-radius: 2.6mm;
+}
+.tl-frame::after {
+  content: "";
+  position: absolute;
+  inset: 0.7mm;
+  border: 0.15mm solid var(--tea-mid);
+  border-radius: 1.9mm;
+}
+
+.tl-content {
+  position: absolute;
+  inset: 1.6mm;
+  padding: 2.6mm 2.6mm 2.2mm;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.tl-art {
+  flex: none;
+  height: 27mm;
+  display: flex;
+  justify-content: center;
+}
+.tl-art svg { width: 32mm; height: 27mm; display: block; overflow: visible; }
+.tl-c-bg { fill: var(--tea-light); }
+.tl-c-ring { fill: none; stroke: var(--tea-mid); stroke-width: 0.9; }
+.tl-c-dots { fill: none; stroke: var(--tea-mid); stroke-width: 0.9; stroke-dasharray: 0.1 2.6; stroke-linecap: round; }
+.tl-c-steam { fill: none; stroke: var(--tea-dark); stroke-width: 1.8; stroke-linecap: round; opacity: 0.45; }
+.tl-c-tea { fill: var(--tea); }
+.tl-c-dark { fill: var(--tea-dark); }
+.tl-c-mid { fill: var(--tea-mid); }
+.tl-c-liquor { fill: var(--tea-liquor); }
+.tl-c-handle { fill: none; stroke: var(--tea-dark); stroke-width: 4.2; stroke-linecap: round; }
+.tl-c-shine { fill: none; stroke: #fff; stroke-width: 2.4; stroke-linecap: round; opacity: 0.4; }
+.tl-c-leaf { fill: #fff; opacity: 0.88; }
+.tl-c-vein { fill: none; stroke: var(--tea); stroke-width: 0.7; stroke-linecap: round; }
+
+.tl-title {
+  flex: none;
+  height: 12.5mm;
+  margin-top: 1.4mm;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  font-family: "Oswald", "Arial Narrow", sans-serif;
+  font-weight: 500;
+  font-size: 15pt;
+  line-height: 1.04;
+  letter-spacing: 0.035em;
+  text-transform: uppercase;
+  color: var(--ink);
+  overflow-wrap: normal;
+  hyphens: manual;
+}
+.tl-title > span { display: block; }
+
+.tl-type {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 1.6mm;
+  margin-top: 0.6mm;
+  font-weight: 600;
+  font-size: 6.4pt;
+  line-height: 1;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--tea-dark);
+  white-space: nowrap;
+}
+.tl-type::before, .tl-type::after {
+  content: "";
+  flex: 1;
+  height: 0.2mm;
+  background: var(--tea-mid);
+}
+
+.tl-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  margin-top: 2.4mm;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.45em;
+  font-size: 7.4pt;
+  line-height: 1.3;
+  hyphens: auto;
+  overflow-wrap: break-word;
+}
+.tl-desc { font-size: 1em; }
+.tl-ingredients { font-size: 0.84em; line-height: 1.28; color: #3a3a3a; }
+.tl-ingredients b { font-weight: 600; color: var(--tea-dark); }
+
+.tl-footer {
+  flex: none;
+  margin-top: 1.6mm;
+  padding-top: 1.3mm;
+  border-top: 0.15mm solid var(--tea-mid);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.9mm;
+  font-style: italic;
+  font-size: 5.6pt;
+  line-height: 1;
+  color: #444;
+  white-space: nowrap;
+}
+.tl-footer svg { width: 2.2mm; height: 2.2mm; flex: none; }
+.tl-footer .tl-c-leaf { fill: var(--tea); opacity: 1; }
+.tl-footer .tl-sep { color: var(--tea-mid); }
+
+/* Hinweis in der Vorschau, wenn Text nicht passt (wird im PDF nicht gesetzt) */
+.tl-preview [data-overflow] { outline: 0.4mm dashed #d33; outline-offset: -0.2mm; }
+
+/* ---------- Testbogen ---------- */
+.tt-outline {
+  position: absolute;
+  width: 45.5mm;
+  height: 95.3mm;
+  border: 0.15mm dashed #999;
+  border-radius: 1mm;
+}
+.tt-num {
+  position: absolute;
+  font: 600 9pt/1 "Oswald", sans-serif;
+  color: #bbb;
+}
+.tt-svg { position: absolute; left: 0; top: 0; width: 297mm; height: 210mm; overflow: visible; }
+.tt-text {
+  position: absolute;
+  font-family: "Source Serif 4", Georgia, serif;
+  color: #222;
+}
+.tt-text h1 { font: 600 13pt/1.2 "Oswald", sans-serif; letter-spacing: 0.03em; margin: 0 0 2mm; }
+.tt-text p, .tt-text li { font-size: 8pt; line-height: 1.35; margin: 0 0 1.2mm; }
+.tt-text ol { margin: 0; padding-left: 4.5mm; }
+.tt-text .tt-meta { font-size: 7pt; color: #666; }
