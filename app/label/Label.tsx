@@ -4,7 +4,7 @@ import { fillColor, inkColor, isHexColor } from "./color";
 import { calibrationStyle, DEFAULT_SHEET, labelBox, NO_CALIBRATION, slotPosition, type Calibration, type SheetGeometry } from "./geometry";
 import { Motif, resolveMotif } from "./motifs";
 import { DEFAULT_TEMPLATE_PARAMS, FONTS, type TemplateParams } from "./template";
-import { hyphenate, normalizeParagraphs, parseEmphasis } from "./text";
+import { hyphenate, normalizeParagraphs, parseMarkup } from "./text";
 
 /** Alles, was zu einer Sorte auf das Etikett kommt. */
 export interface LabelContent {
@@ -35,11 +35,30 @@ export interface PrintExtras {
   lot?: string;
 }
 
+export type FooterSeparator = "blatt" | "punkt" | "strich" | "keins";
+
+export const FOOTER_SEPARATORS: Record<FooterSeparator, string> = {
+  blatt: "Blatt",
+  punkt: "Punkt ·",
+  strich: "Strich |",
+  keins: "kein Trenner",
+};
+
+/**
+ * Fußzeile: Text links und rechts (mit Trenner dazwischen) und eine optionale
+ * zweite Zeile. Alle Texte dürfen *fett*, _kursiv_ und ++unterstrichen++ enthalten.
+ */
 export interface ShopInfo {
+  /** Fußzeile links, z. B. Shopname */
   name: string;
+  /** Fußzeile rechts, z. B. Internetadresse */
   url: string;
+  /** zweite Zeile, z. B. Anschrift */
   address?: string;
   organicCode?: string;
+  separator?: FooterSeparator;
+  /** Fußzeile kursiv (Standard) oder aufrecht */
+  footerItalic?: boolean;
 }
 
 /** Grenzen für einzeilige Felder in pt (Titel und Text kommen aus der Vorlage). */
@@ -49,6 +68,32 @@ export const LINE_FIT = {
   meta: { max: 5.6, min: 4.4 },
   footer: { max: 5.6, min: 4.2 },
 } as const;
+
+/** Text mit *fett*, _kursiv_ und ++unterstrichen++; optional mit Silbentrennung. */
+export function RichText({ text, hyphens = false }: { text: string; hyphens?: boolean }) {
+  return (
+    <>
+      {parseMarkup(text).map((seg, i) => {
+        const content = hyphens ? hyphenate(seg.text) : seg.text;
+        const cls = [seg.bold ? "tl-b" : "", seg.italic ? "tl-i" : "", seg.underline ? "tl-u" : ""].filter(Boolean).join(" ");
+        return cls ? (
+          <span key={i} className={cls}>
+            {content}
+          </span>
+        ) : (
+          <span key={i}>{content}</span>
+        );
+      })}
+    </>
+  );
+}
+
+function FooterSeparatorMark({ kind }: { kind: FooterSeparator }) {
+  if (kind === "blatt") return <LeafIcon />;
+  if (kind === "punkt") return <span className="tl-sep">·</span>;
+  if (kind === "strich") return <span className="tl-sep">|</span>;
+  return <span className="tl-sep-gap" />;
+}
 
 function LeafIcon() {
   return (
@@ -105,7 +150,7 @@ export function Label({
     .filter(Boolean)
     .join(" · ");
   const description = hyphenate(normalizeParagraphs(data.description));
-  const ingredients = parseEmphasis(normalizeParagraphs(data.ingredients).replace(/\n+/g, " "));
+  const ingredients = normalizeParagraphs(data.ingredients).replace(/\n+/g, " ");
 
   const style = {
     "--tea": fillColor(color),
@@ -153,10 +198,9 @@ export function Label({
           ) : null}
           <Fit className="tl-body" max={t.bodyMax} min={t.bodyMin}>
             {description ? <p className="tl-desc">{description}</p> : null}
-            {ingredients.length ? (
+            {ingredients ? (
               <p className="tl-ingredients">
-                <span className="tl-lead">Zutaten:</span>{" "}
-                {ingredients.map((part, i) => (part.bold ? <b key={i}>{hyphenate(part.text)}</b> : <span key={i}>{hyphenate(part.text)}</span>))}
+                <span className="tl-lead">Zutaten:</span> <RichText text={ingredients} hyphens />
               </p>
             ) : null}
           </Fit>
@@ -175,13 +219,27 @@ export function Label({
             </div>
           ) : null}
           {t.showFooter && (shop.name || shop.url || shop.address) ? (
-            <Fit className="tl-line tl-footer" {...LINE_FIT.footer}>
-              <div className="tl-fline">
-                {shop.name ? <span>{shop.name}</span> : null}
-                {shop.name && shop.url ? <LeafIcon /> : null}
-                {shop.url ? <span>{shop.url}</span> : null}
-              </div>
-              {shop.address ? <div className="tl-addr">{shop.address}</div> : null}
+            <Fit className={`tl-line tl-footer${shop.footerItalic === false ? " tl-footer-upright" : ""}`} {...LINE_FIT.footer}>
+              {shop.name || shop.url ? (
+                <div className="tl-fline">
+                  {shop.name ? (
+                    <span>
+                      <RichText text={shop.name} />
+                    </span>
+                  ) : null}
+                  {shop.name && shop.url ? <FooterSeparatorMark kind={shop.separator ?? "blatt"} /> : null}
+                  {shop.url ? (
+                    <span>
+                      <RichText text={shop.url} />
+                    </span>
+                  ) : null}
+                </div>
+              ) : null}
+              {shop.address ? (
+                <div className="tl-addr">
+                  <RichText text={shop.address} />
+                </div>
+              ) : null}
             </Fit>
           ) : null}
         </div>

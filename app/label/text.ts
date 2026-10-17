@@ -27,18 +27,78 @@ export function normalizeParagraphs(text: string): string {
     .trim();
 }
 
-/** Einfache Hervorhebung: *Mandeln* wird fett (für Allergene in den Zutaten). */
-export function parseEmphasis(text: string): { text: string; bold: boolean }[] {
-  const parts: { text: string; bold: boolean }[] = [];
-  const re = /\*([^*\n]+)\*/g;
-  let last = 0;
-  for (let m = re.exec(text); m; m = re.exec(text)) {
-    if (m.index > last) parts.push({ text: text.slice(last, m.index), bold: false });
-    parts.push({ text: m[1]!, bold: true });
-    last = m.index + m[0].length;
+export interface MarkupSegment {
+  text: string;
+  bold: boolean;
+  italic: boolean;
+  underline: boolean;
+}
+
+/** Formatierungszeichen: *fett*, _kursiv_, ++unterstrichen++ (beliebig kombinierbar). */
+export const MARKUP = {
+  bold: "*",
+  italic: "_",
+  underline: "++",
+} as const;
+
+type Style = keyof typeof MARKUP;
+
+/**
+ * Zerlegt Text mit Formatierungszeichen in Abschnitte. Zeichen ohne passendes
+ * Gegenstück (z. B. ein einzelnes Sternchen) bleiben als normaler Text stehen.
+ */
+export function parseMarkup(text: string): MarkupSegment[] {
+  // Fundstellen je Format sammeln; „++“ vor „*“ und „_“ prüfen
+  const found: Record<Style, number[]> = { bold: [], italic: [], underline: [] };
+  for (let i = 0; i < text.length; i++) {
+    if (text.startsWith(MARKUP.underline, i)) {
+      found.underline.push(i);
+      i += MARKUP.underline.length - 1;
+    } else if (text[i] === MARKUP.bold) found.bold.push(i);
+    else if (text[i] === MARKUP.italic) found.italic.push(i);
   }
-  if (last < text.length) parts.push({ text: text.slice(last), bold: false });
-  return parts;
+  // nacheinander paaren; leere Paare und Einzelzeichen bleiben Text
+  const toggles = new Map<number, Style>();
+  for (const style of Object.keys(found) as Style[]) {
+    const pos = found[style];
+    const len = MARKUP[style].length;
+    for (let k = 0; k + 1 < pos.length; k += 2) {
+      const open = pos[k]!;
+      const close = pos[k + 1]!;
+      if (close - open - len <= 0 || !text.slice(open + len, close).trim()) continue;
+      toggles.set(open, style);
+      toggles.set(close, style);
+    }
+  }
+  const segments: MarkupSegment[] = [];
+  const state = { bold: false, italic: false, underline: false };
+  let buf = "";
+  const flush = () => {
+    if (buf) segments.push({ text: buf, ...state });
+    buf = "";
+  };
+  for (let i = 0; i < text.length; i++) {
+    const style = toggles.get(i);
+    if (style) {
+      flush();
+      state[style] = !state[style];
+      i += MARKUP[style].length - 1;
+    } else buf += text[i];
+  }
+  flush();
+  return segments;
+}
+
+/** Text ohne Formatierungszeichen (z. B. für Längenprüfung oder Suche). */
+export function stripMarkup(text: string): string {
+  return parseMarkup(text)
+    .map((s) => s.text)
+    .join("");
+}
+
+/** @deprecated Kompatibilität: nur fett */
+export function parseEmphasis(text: string): { text: string; bold: boolean }[] {
+  return parseMarkup(text).map(({ text: t, bold }) => ({ text: t, bold }));
 }
 
 /**

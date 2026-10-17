@@ -63,6 +63,20 @@ describe.runIf(hasChromium)("PDF-Erzeugung", () => {
     expect(overflowing).toBe(0);
   });
 
+  it("druckt formatierte Zutaten und jede Fußzeilenvariante ohne Überlauf", async () => {
+    const content = { ...tea, ingredients: "Grüner Tee, *Mandeln*, ++Haselnüsse++, _Sahne_, *++_Soja_++*" };
+    const html = labelSheetsHtml({ items: [{ content, template: DEFAULT_TEMPLATE_PARAMS }], shop, calibration: NO_CALIBRATION, start: 1 });
+    expect(html).toContain('class="tl-b"');
+    expect(html).toContain('class="tl-u"');
+    expect(html).toContain('class="tl-i"');
+    expect(html).toContain('class="tl-b tl-i tl-u"');
+    for (const separator of ["blatt", "punkt", "strich", "keins"] as const) {
+      const footer = { name: "*Tee-Treff-Punkt*", url: "www.teetreffpunkt.de", address: "Musterstraße 1 · 12345 Musterstadt", separator, footerItalic: separator !== "punkt" };
+      const { overflowing } = await htmlToPdf(labelSheetsHtml({ items: [{ content, template: DEFAULT_TEMPLATE_PARAMS }], shop: footer, calibration: NO_CALIBRATION, start: 1 }));
+      expect(overflowing).toBe(0);
+    }
+  });
+
   it("unterstützt andere Bogenformate", async () => {
     const format = { ...DEFAULT_SHEET, pageWidth: 210, pageHeight: 297, columns: 3, rows: 3, labelWidth: 63.5, labelHeight: 90, originX: 7, originY: 8, pitchX: 66, pitchY: 95 };
     const { pdf } = await htmlToPdf(labelSheetsHtml({ items: many(10), shop, format, calibration: NO_CALIBRATION, start: 1 }), { pageWidth: 210, pageHeight: 297 });

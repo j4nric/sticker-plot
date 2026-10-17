@@ -1,7 +1,9 @@
 import { eq } from "drizzle-orm";
 import { db } from "~/db/db.server";
 import { settings } from "~/db/schema";
-import type { ShopInfo } from "~/label/Label";
+import type { FooterSeparator, ShopInfo } from "~/label/Label";
+
+const SEPARATORS: FooterSeparator[] = ["blatt", "punkt", "strich", "keins"];
 
 export interface AppSettings {
   shop: Required<ShopInfo>;
@@ -30,7 +32,14 @@ function write(key: string, value: unknown) {
 export function getSettings(): AppSettings {
   const shop = read<Partial<ShopInfo>>("shop", {});
   return {
-    shop: { name: shop.name ?? "", url: shop.url ?? "", address: shop.address ?? "", organicCode: shop.organicCode ?? "" },
+    shop: {
+      name: shop.name ?? "",
+      url: shop.url ?? "",
+      address: shop.address ?? "",
+      organicCode: shop.organicCode ?? "",
+      separator: SEPARATORS.includes(shop.separator as FooterSeparator) ? (shop.separator as FooterSeparator) : "blatt",
+      footerItalic: shop.footerItalic !== false,
+    },
     overflowPolicy: read<string>("overflowPolicy", "block") === "warn" ? "warn" : "block",
   };
 }
