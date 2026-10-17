@@ -9,6 +9,7 @@ import type { TemplateParams } from "~/label/template";
 import { unsupportedChars } from "~/label/text";
 import { FormatToolbar } from "./FormatToolbar";
 import { LabelPreviewPanel } from "./LabelPreviewPanel";
+import { Notice } from "./Notice";
 
 export interface TeaFormValues {
   name: string;
@@ -263,14 +264,14 @@ export function TeaEditor({
           </fieldset>
 
           {badChars.length ? (
-            <p className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+            <Notice tone="warning">
               Diese Zeichen können nicht gedruckt werden und müssen entfernt werden: <b>{badChars.join(" ")}</b>
-            </p>
+            </Notice>
           ) : null}
           {overflowing ? (
-            <p className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+            <Notice tone="warning">
               Der Text passt selbst in kleinster Schrift nicht vollständig aufs Etikett (rot markiert). Bitte kürzen, sonst wird kein PDF erstellt.
-            </p>
+            </Notice>
           ) : null}
 
           <div className="flex flex-wrap items-center gap-3 border-t border-stone-200 pt-4">

@@ -17,6 +17,7 @@ import {
 } from "~/models/printer.server";
 import { formatNumber, formatSigned } from "~/lib/locale";
 import { parseId } from "~/lib/params";
+import { Notice } from "~/components/Notice";
 import type { Route } from "./+types/printer";
 
 function printerIdFrom(params: { printerId: string }) {
@@ -123,7 +124,7 @@ export default function PrinterPage({ loaderData, actionData }: Route.ComponentP
         </h1>
       </div>
 
-      {actionData?.message ? <p className="rounded-lg bg-brand-50 px-4 py-2 text-brand-800">{actionData.message}</p> : null}
+      {actionData?.message ? <Notice>{actionData.message}</Notice> : null}
 
       <div className="grid gap-5 lg:grid-cols-2">
         <section className="card space-y-3">

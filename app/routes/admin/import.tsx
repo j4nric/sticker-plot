@@ -1,8 +1,10 @@
-import { useEffect, useRef, useState } from "react";
-import { data, Form, Link, useFetcher, useNavigation, useRevalidator } from "react-router";
+import { useEffect } from "react";
+import { data, Form, useNavigation, useRevalidator } from "react-router";
+import { PdfUploader } from "~/components/import/PdfUploader";
+import { ReviewItem } from "~/components/import/ReviewItem";
+import { Notice } from "~/components/Notice";
 import { acceptImport } from "~/lib/import/accept.server";
 import { importTeasFromCsv, type CsvImportReport } from "~/lib/import/csv-import.server";
-import type { ImportResult } from "~/lib/import/interpret";
 import { kickQueue } from "~/lib/import/queue.server";
 import { currentUser } from "~/lib/session.server";
 import { audit } from "~/models/audit.server";
@@ -84,183 +86,6 @@ export async function action({ request, context }: Route.ActionArgs) {
   }
 }
 
-function Uploader() {
-  const [progress, setProgress] = useState<{ done: number; total: number; errors: string[] } | null>(null);
-  const revalidator = useRevalidator();
-  const input = useRef<HTMLInputElement>(null);
-
-  async function upload(files: FileList) {
-    const list = Array.from(files).filter((f) => f.name.toLowerCase().endsWith(".pdf"));
-    const errors: string[] = [];
-    setProgress({ done: 0, total: list.length, errors });
-    for (let i = 0; i < list.length; i++) {
-      const body = new FormData();
-      body.set("pdf", list[i]!);
-      try {
-        const res = await fetch("/verwaltung/import/status", { method: "POST", body });
-        if (!res.ok) errors.push(((await res.json().catch(() => null)) as { error?: string } | null)?.error ?? `${list[i]!.name}: Fehler ${res.status}`);
-      } catch {
-        errors.push(`${list[i]!.name}: Verbindung unterbrochen`);
-      }
-      setProgress({ done: i + 1, total: list.length, errors: [...errors] });
-      if (i % 5 === 4) revalidator.revalidate();
-    }
-    if (input.current) input.current.value = "";
-    revalidator.revalidate();
-  }
-
-  return (
-    <section className="card space-y-3">
-      <h2 className="font-display text-lg tracking-wide uppercase">Alte Etiketten (PDF) übernehmen</h2>
-      <p className="text-sm text-stone-700">
-        PDFs aus Photoshop auswählen, gern alle auf einmal. Die App liest auf dem ersten Etikett jedes Bogens Name, Teeart, Beschreibung und Tassenfarbe per
-        Texterkennung. Danach erscheinen die Ergebnisse unten zur Prüfung. Pro Datei dauert das einige Sekunden.
-      </p>
-      <input
-        ref={input}
-        type="file"
-        accept="application/pdf,.pdf"
-        multiple
-        className="text-sm"
-        onChange={(e) => e.target.files?.length && upload(e.target.files)}
-        disabled={Boolean(progress && progress.done < progress.total)}
-        aria-label="PDF-Dateien auswählen"
-      />
-      {progress ? (
-        <div className="space-y-1 text-sm">
-          <p>
-            {progress.done} von {progress.total} Dateien hochgeladen
-          </p>
-          <div className="h-1.5 overflow-hidden rounded-full bg-stone-200">
-            <div className="h-full bg-brand-600" style={{ width: `${progress.total ? (progress.done / progress.total) * 100 : 0}%` }} />
-          </div>
-          {progress.errors.map((e) => (
-            <p key={e} className="field-error">
-              {e}
-            </p>
-          ))}
-        </div>
-      ) : null}
-      <p className="field-hint">
-        Für sehr viele Dateien gibt es zusätzlich ein Kommandozeilen-Werkzeug auf dem Server, siehe Dokumentation „Import“.
-      </p>
-    </section>
-  );
-}
-
-type Item = Route.ComponentProps["loaderData"]["items"][number];
-
-function Confidence({ value }: { value: number }) {
-  const color = value >= 85 ? "bg-brand-100 text-brand-800" : value >= 65 ? "bg-amber-100 text-amber-900" : "bg-red-100 text-red-800";
-  return <span className={`rounded px-1.5 py-0.5 text-[11px] font-semibold ${color}`}>{value} %</span>;
-}
-
-function ReviewItem({ item }: { item: Item }) {
-  const fetcher = useFetcher<ActionResult>();
-  const r = item.result as ImportResult | null;
-  const busy = fetcher.state !== "idle";
-  const err = fetcher.data?.error;
-
-  if (item.status === "queued" || item.status === "processing") {
-    return (
-      <li className="card flex items-center gap-3 text-sm">
-        <span className="size-3 animate-pulse rounded-full bg-brand-600" aria-hidden="true" />
-        <span className="flex-1 font-mono text-xs">{item.fileName}</span>
-        <span className="text-stone-500">{item.status === "processing" ? "wird gelesen …" : "wartet"}</span>
-      </li>
-    );
-  }
-  if (item.status === "error" || !r) {
-    return (
-      <li className="card flex flex-wrap items-center gap-3 border-red-200 text-sm">
-        <span className="flex-1">
-          <span className="block font-mono text-xs">{item.fileName}</span>
-          <span className="text-red-700">{item.error || "Fehler"}</span>
-        </span>
-        <fetcher.Form method="post" className="flex gap-2">
-          <input type="hidden" name="id" value={item.id} />
-          <button className="btn-secondary" name="intent" value="retry" disabled={busy}>
-            Erneut versuchen
-          </button>
-          <button className="btn-danger" name="intent" value="skip" disabled={busy}>
-            Verwerfen
-          </button>
-        </fetcher.Form>
-      </li>
-    );
-  }
-  return (
-    <li className="card">
-      <fetcher.Form method="post" className="grid gap-4 md:grid-cols-[160px_minmax(0,1fr)]">
-        <input type="hidden" name="id" value={item.id} />
-        <div className="space-y-2">
-          <img src={`/verwaltung/import/${item.id}/vorschau.png`} alt={`Erkanntes Etikett aus ${item.fileName}`} className="w-40 rounded border border-stone-200" loading="lazy" />
-          <p className="font-mono text-[11px] break-all text-stone-500">{item.fileName}</p>
-        </div>
-        <div className="space-y-3">
-          <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
-            <div>
-              <label className="field-label flex items-center gap-2" htmlFor={`n-${item.id}`}>
-                Name <Confidence value={r.confidence.name} />
-              </label>
-              <input id={`n-${item.id}`} name="name" defaultValue={r.name} required maxLength={80} className="field-input" />
-              {r.fileNameGuess && r.fileNameGuess !== r.name ? <p className="field-hint">Laut Dateiname: {r.fileNameGuess}</p> : null}
-            </div>
-            <div>
-              <label className="field-label flex items-center gap-2" htmlFor={`t-${item.id}`}>
-                Teeart <Confidence value={r.confidence.teaType} />
-              </label>
-              <input id={`t-${item.id}`} name="teaType" defaultValue={r.teaType} maxLength={40} className="field-input" />
-            </div>
-            <div>
-              <label className="field-label" htmlFor={`c-${item.id}`}>
-                Farbe
-              </label>
-              <input id={`c-${item.id}`} name="color" type="color" defaultValue={r.color} className="h-10 w-14 rounded border border-stone-300 bg-white p-1" />
-            </div>
-          </div>
-          <div>
-            <label className="field-label flex items-center gap-2" htmlFor={`d-${item.id}`}>
-              Beschreibung <Confidence value={r.confidence.description} />
-            </label>
-            <textarea id={`d-${item.id}`} name="description" defaultValue={r.description} rows={4} className="field-input" />
-          </div>
-          <div>
-            <label className="field-label" htmlFor={`i-${item.id}`}>
-              Zutaten
-            </label>
-            <input id={`i-${item.id}`} name="ingredients" defaultValue={r.ingredients} maxLength={1000} className="field-input" placeholder="auf alten Etiketten meist nicht vorhanden" />
-          </div>
-          {r.warnings.length ? (
-            <ul className="list-inside list-disc text-sm text-amber-800">
-              {r.warnings.map((w) => (
-                <li key={w}>{w}</li>
-              ))}
-            </ul>
-          ) : null}
-          {item.duplicate ? (
-            <p className="text-sm text-amber-800">
-              Es gibt schon eine Sorte „<Link to={`/tees/${item.duplicate.id}`} className="underline">{item.duplicate.name}</Link>“.
-              <label className="ml-2 inline-flex items-center gap-1">
-                <input type="checkbox" name="allowDuplicate" value="1" /> trotzdem zusätzlich anlegen
-              </label>
-            </p>
-          ) : null}
-          {err ? <p className="field-error">{err}</p> : null}
-          <div className="flex flex-wrap gap-2">
-            <button className="btn-primary" name="intent" value="accept" disabled={busy}>
-              Übernehmen
-            </button>
-            <button className="btn-danger" name="intent" value="skip" disabled={busy} formNoValidate>
-              Verwerfen
-            </button>
-          </div>
-        </div>
-      </fetcher.Form>
-    </li>
-  );
-}
-
 export default function Import({ loaderData, actionData }: Route.ComponentProps) {
   const { items, counts } = loaderData;
   const revalidator = useRevalidator();
@@ -277,10 +102,10 @@ export default function Import({ loaderData, actionData }: Route.ComponentProps)
   return (
     <div className="space-y-5">
       <h1 className="font-display text-3xl tracking-wide uppercase">Import</h1>
-      {actionData?.message ? <p className="rounded-lg bg-brand-50 px-4 py-2 text-brand-800">{actionData.message}</p> : null}
+      {actionData?.message ? <Notice>{actionData.message}</Notice> : null}
       {actionData?.error && !actionData.itemId ? <p className="field-error">{actionData.error}</p> : null}
 
-      <Uploader />
+      <PdfUploader />
 
       <section className="space-y-3">
         <div className="flex flex-wrap items-center gap-3">

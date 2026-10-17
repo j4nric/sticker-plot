@@ -12,6 +12,7 @@ import { allTeas, toLabelContent } from "~/models/tea.server";
 import { deleteTemplate, getTemplate, listTemplates, saveTemplate, setDefaultTemplate } from "~/models/template.server";
 import { formatCompact } from "~/lib/locale";
 import { parseId } from "~/lib/params";
+import { Notice } from "~/components/Notice";
 import type { Route } from "./+types/template-edit";
 
 export function meta() {
@@ -106,7 +107,7 @@ export default function TemplateEdit({ loaderData, actionData }: Route.Component
         ‹ Alle Vorlagen
       </Link>
       <h1 className="font-display text-3xl tracking-wide uppercase">{template.id ? template.name : "Neue Vorlage"}</h1>
-      {actionData?.saved ? <p className="rounded-lg bg-brand-50 px-4 py-2 text-brand-800">Gespeichert.</p> : null}
+      {actionData?.saved ? <Notice>Gespeichert.</Notice> : null}
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_auto]">
         <Form method="post" className="card space-y-5">
           <div>

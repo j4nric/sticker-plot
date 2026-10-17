@@ -10,6 +10,7 @@ Texterkennung übernommen.
 - Installation und Betrieb auf dem Server: [docs/betrieb.md](docs/betrieb.md)
 - Entscheidungen und Umsetzungsstand: [docs/entscheidungen-und-umsetzung.md](docs/entscheidungen-und-umsetzung.md)
 - Technologiewahl: [docs/technologie-recherche.md](docs/technologie-recherche.md)
+- Performance-Analyse mit Messwerten: [docs/performance-analyse.md](docs/performance-analyse.md)
 
 ## Funktionen
 

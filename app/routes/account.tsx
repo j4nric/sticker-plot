@@ -4,6 +4,7 @@ import { passwordRule } from "~/lib/validation";
 import { audit } from "~/models/audit.server";
 import { getUser, setPassword } from "~/models/user.server";
 import { verifyPassword } from "~/lib/password.server";
+import { Notice } from "~/components/Notice";
 import type { Route } from "./+types/account";
 
 export function meta() {
@@ -41,7 +42,7 @@ export default function Account({ loaderData, actionData }: Route.ComponentProps
       </p>
       <Form method="post" className="card space-y-4" key={actionData?.ok ? "ok" : "form"}>
         <h2 className="font-display text-lg tracking-wide uppercase">Passwort ändern</h2>
-        {actionData?.ok ? <p className="rounded-lg bg-brand-50 px-3 py-2 text-brand-800">Passwort geändert.</p> : null}
+        {actionData?.ok ? <Notice>Passwort geändert.</Notice> : null}
         <div>
           <label className="field-label" htmlFor="current">
             Aktuelles Passwort

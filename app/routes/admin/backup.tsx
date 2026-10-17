@@ -3,6 +3,7 @@ import { createBackup, listBackups, restoreDatabase } from "~/lib/backup.server"
 import { currentUser, destroySession, getSession } from "~/lib/session.server";
 import { audit } from "~/models/audit.server";
 import { formatDateTime } from "~/lib/locale";
+import { Notice } from "~/components/Notice";
 import type { Route } from "./+types/backup";
 
 export function meta() {
@@ -46,7 +47,7 @@ export default function Backup({ loaderData, actionData }: Route.ComponentProps)
         Alle Daten liegen in einer einzigen Datenbankdatei, auch hochgeladene Bilder. Der Server sichert täglich automatisch. Für eine zusätzliche Kopie die
         Datenbank herunterladen und z. B. auf einem Stick oder in der Cloud ablegen.
       </p>
-      {actionData?.ok ? <p className="rounded-lg bg-brand-50 px-4 py-2 text-brand-800">{actionData.ok}</p> : null}
+      {actionData?.ok ? <Notice>{actionData.ok}</Notice> : null}
       {actionData?.error ? <p className="field-error">{actionData.error}</p> : null}
 
       <section className="card flex flex-wrap items-center gap-3">

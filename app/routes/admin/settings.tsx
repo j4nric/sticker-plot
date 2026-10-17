@@ -9,6 +9,7 @@ import { audit } from "~/models/audit.server";
 import { listFormats } from "~/models/format.server";
 import { getSettings, saveSettings } from "~/models/settings.server";
 import { listTemplates } from "~/models/template.server";
+import { Notice } from "~/components/Notice";
 import type { Route } from "./+types/settings";
 
 export function meta() {
@@ -88,7 +89,7 @@ export default function Settings({ loaderData, actionData }: Route.ComponentProp
   return (
     <div className="space-y-5">
       <h1 className="font-display text-3xl tracking-wide uppercase">Einstellungen</h1>
-      {actionData?.saved ? <p className="rounded-lg bg-brand-50 px-4 py-2 text-brand-800">Gespeichert.</p> : null}
+      {actionData?.saved ? <Notice>Gespeichert.</Notice> : null}
       <Form method="post" className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_auto]">
         <div className="space-y-5">
           <section className="card space-y-4">

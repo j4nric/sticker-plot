@@ -4,6 +4,7 @@ import { passwordRule, usernameRule } from "~/lib/validation";
 import { audit } from "~/models/audit.server";
 import { createUser, deleteUser, findUserByName, getUser, isLastActiveAdmin, listUsers, setPassword, updateUser } from "~/models/user.server";
 import { formatDateTime } from "~/lib/locale";
+import { Notice } from "~/components/Notice";
 import type { Route } from "./+types/users";
 
 export function meta() {
@@ -78,7 +79,7 @@ export default function Users({ loaderData, actionData }: Route.ComponentProps) 
         <b>Personal</b> darf Tees anlegen, bearbeiten, archivieren, drucken und Drucker kalibrieren. <b>Administratoren</b> dürfen zusätzlich endgültig löschen und
         die Verwaltung nutzen.
       </p>
-      {actionData?.ok ? <p className="rounded-lg bg-brand-50 px-4 py-2 text-brand-800">{actionData.ok}</p> : null}
+      {actionData?.ok ? <Notice>{actionData.ok}</Notice> : null}
       {actionData?.error && !actionData.userId ? <p className="field-error">{actionData.error}</p> : null}
 
       <ul className="space-y-3">

@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
-import { PrintPanel, useDeviceChoice } from "~/components/PrintPanel";
+import { PrintPanel } from "~/components/PrintPanel";
+import { useDeviceChoice } from "~/components/useDeviceChoice";
 import { editorData } from "~/lib/editor.server";
 import { labelsPerSheet, layoutSequence, MAX_PRINT_LABELS, type PrintLayout } from "~/label/geometry";
 import { listTeas } from "~/models/tea.server";

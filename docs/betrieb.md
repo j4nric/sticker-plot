@@ -150,6 +150,10 @@ sudo bash /opt/sticker-plot/scripts/install-server.sh <domain>
 Es holt den neuesten Stand, baut den Container neu und startet ihn. Datenbank-Migrationen laufen
 beim Start automatisch, die Daten bleiben erhalten.
 
+**Hinweis zum Update mit der Performance-Überarbeitung (Oktober 2026):** Danach muss sich jeder
+einmal neu anmelden. Messwerte und Änderungen stehen in
+[performance-analyse.md](performance-analyse.md).
+
 ### Automatische Updates per GitHub Actions (optional)
 
 Der Workflow `.github/workflows/deploy.yml` spielt jeden erfolgreich getesteten Stand automatisch
@@ -202,7 +206,10 @@ Die Sicherungen zusätzlich extern ablegen, z. B. regelmäßig in der App herunt
 - **PDF-Erzeugung schlägt fehl:** `docker compose logs app` prüfen. Meist fehlt Speicher; dann
   `shm_size` in `docker-compose.yml` erhöhen oder mehr RAM bereitstellen.
 - **Login klappt nicht:** Läuft die Seite über HTTPS? Für Tests ohne HTTPS `COOKIE_SECURE=false`
-  in `.env` setzen.
+  in `.env` setzen. Nach 5 Fehlversuchen von einem Gerät bzw. 20 Fehlversuchen insgesamt ist
+  der Name 10 Minuten gesperrt.
+- **„Die Datei ist zu groß“ (413):** Grenzen je Upload: Bild 4 MB, PDF-Import 40 MB je Datei,
+  CSV 10 MB, Sicherung 500 MB (der Caddy-Proxy des Installationsskripts lässt bis 64 MB zu).
 - **Container startet nicht:** Fehlt `APP_PASSWORD` oder `SESSION_SECRET`, bricht der Start mit
   einer entsprechenden Meldung ab.
 - **Passwort des Admins vergessen:** Ein anderer Administrator setzt es unter Verwaltung →

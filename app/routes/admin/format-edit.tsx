@@ -7,6 +7,7 @@ import { readGeometry } from "~/lib/validation";
 import { audit } from "~/models/audit.server";
 import { deleteFormat, getFormat, listFormats, saveFormat, setDefaultFormat } from "~/models/format.server";
 import { parseId } from "~/lib/params";
+import { Notice } from "~/components/Notice";
 import type { Route } from "./+types/format-edit";
 
 export function meta() {
@@ -85,7 +86,7 @@ export default function FormatEdit({ loaderData, actionData }: Route.ComponentPr
         ‹ Alle Formate
       </Link>
       <h1 className="font-display text-3xl tracking-wide uppercase">{format.id ? format.name : "Neues Bogenformat"}</h1>
-      {actionData?.saved ? <p className="rounded-lg bg-brand-50 px-4 py-2 text-brand-800">Gespeichert.</p> : null}
+      {actionData?.saved ? <Notice>Gespeichert.</Notice> : null}
       <div className="grid gap-6 lg:grid-cols-2">
         <Form method="post" className="card space-y-4">
           <div>
