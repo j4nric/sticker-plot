@@ -60,8 +60,8 @@ bash install-server.sh <domain>
 
 ### Vorhandener Webserver als Reverse Proxy
 
-Läuft auf dem Server schon eine andere Website mit nginx oder Apache, bleibt dieser Webserver in
-Betrieb und leitet nur die Adresse der Tee-App an sie weiter. Ablauf:
+Läuft auf dem Server schon eine andere Website mit nginx, Apache oder Caddy im Docker-Container,
+bleibt dieser Webserver in Betrieb und leitet nur die Adresse der Tee-App an sie weiter. Ablauf:
 
 1. Installationsskript ausführen und die Frage, ob der Webserver abgeschaltet werden soll, mit
    **N** beantworten. Die App läuft dann intern. Ist Port 3000 schon von der anderen App belegt,
@@ -76,8 +76,25 @@ Betrieb und leitet nur die Adresse der Tee-App an sie weiter. Ablauf:
    an, prüft sie und holt mit certbot ein Zertifikat. Ist die Konfiguration fehlerhaft, wird sie
    zurückgenommen; die andere Website bleibt unberührt.
 
-Gehört Port 80 einem Docker-Container (z. B. Traefik), muss die Weiterleitung dort eingetragen
-werden: Domain → `127.0.0.1:<APP_PORT>`.
+Gehört Port 80 einem **Caddy im Docker-Container** einer anderen App, erledigt dasselbe Skript
+das ebenfalls: Es verbindet die Tee-App mit dem Docker-Netzwerk dieses Containers
+(`docker-compose.override.yml`, bleibt bei Updates erhalten), ergänzt in dessen Caddyfile einen
+Block für die Domain (vorher mit Sicherungskopie), prüft die Konfiguration und lädt Caddy neu. Das
+Zertifikat holt Caddy selbst. Überschreibt die andere App ihre Caddyfile bei eigenen Updates, den
+Block dort dauerhaft eintragen:
+
+```
+tee-62-83-23-90.sslip.io {
+	encode gzip
+	request_body {
+		max_size 64MB
+	}
+	reverse_proxy tee-etiketten:3000
+}
+```
+
+Andere Webserver im Container (z. B. Traefik) werden nicht automatisch eingerichtet; dort die
+Weiterleitung Domain → Container `tee-etiketten`, Port 3000 eintragen.
 
 ## Manuelle Installation
 

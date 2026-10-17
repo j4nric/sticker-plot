@@ -261,7 +261,7 @@ if [[ $SETUP_CADDY -eq 1 ]]; then
 else
   echo "Die App läuft intern auf http://127.0.0.1:$APP_PORT."
   echo "Damit sie unter https://$DOMAIN erreichbar ist, den vorhandenen Webserver weiterleiten lassen."
-  if command -v nginx >/dev/null 2>&1 || command -v apache2 >/dev/null 2>&1; then
+  if command -v nginx >/dev/null 2>&1 || command -v apache2 >/dev/null 2>&1 || [[ -n "$(docker ps -q --filter publish=80)" ]]; then
     echo "Einrichten mit:  sudo bash $APP_DIR/scripts/setup-proxy.sh $DOMAIN"
   else
     echo "Anleitung: docs/betrieb.md, Abschnitt 'Vorhandener Webserver als Reverse Proxy'."

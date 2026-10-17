@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 #
-# Bindet die Tee-Etiketten-App in einen bereits laufenden nginx oder Apache
-# ein, wenn auf dem Server noch eine andere Website läuft.
+# Bindet die Tee-Etiketten-App in einen bereits laufenden Webserver ein, wenn
+# auf dem Server noch eine andere Website läuft: nginx, Apache oder Caddy im
+# Docker-Container.
 #
 #   sudo bash /opt/sticker-plot/scripts/setup-proxy.sh <domain>
 #
@@ -88,7 +89,75 @@ APACHE
     certbot --apache -d "$DOMAIN" --non-interactive --agree-tos --register-unsafely-without-email --redirect
     ;;
   docker-proxy)
-    fail "Port 80 gehört einem Docker-Container (z. B. Traefik oder ein nginx im Container). Dort muss $DOMAIN → 127.0.0.1:$PORT eingetragen werden; bitte die Ausgabe von 'docker ps' an den Entwickler schicken."
+    # Port 80 gehört einem Container. Unterstützt: Caddy im Container (z. B. caddy:2) mit
+    # eingebundener Caddyfile. Die App kommt ins selbe Docker-Netzwerk, Caddy leitet weiter.
+    CID="$(docker ps -q --filter publish=80 | head -n1)"
+    [[ -n "$CID" ]] || fail "Kein Container mit Port 80 gefunden."
+    CNAME="$(docker inspect -f '{{.Name}}' "$CID" | sed 's#^/##')"
+    IMAGE="$(docker inspect -f '{{.Config.Image}}' "$CID")"
+    info "Port 80 gehört dem Container $CNAME ($IMAGE)"
+    [[ "$IMAGE" =~ (^|/)caddy(:|@|$) ]] || fail "Der Container $CNAME ist kein Caddy. Bitte die Ausgabe von 'docker ps' an den Entwickler schicken."
+
+    NETS="$(docker inspect -f '{{range $k, $v := .NetworkSettings.Networks}}{{$k}}{{"\n"}}{{end}}' "$CID" | grep -v '^$' || true)"
+    NET="$(grep -m1 '_default$' <<<"$NETS" || head -n1 <<<"$NETS")"
+    [[ -n "$NET" ]] || fail "Netzwerk von $CNAME nicht gefunden."
+
+    CADDYFILE="$(docker inspect -f '{{range .Mounts}}{{if eq .Destination "/etc/caddy/Caddyfile"}}{{.Source}}{{end}}{{end}}' "$CID")"
+    if [[ -z "$CADDYFILE" ]]; then
+      DIR="$(docker inspect -f '{{range .Mounts}}{{if eq .Destination "/etc/caddy"}}{{.Source}}{{end}}{{end}}' "$CID")"
+      [[ -n "$DIR" ]] && CADDYFILE="$DIR/Caddyfile"
+    fi
+    [[ -n "$CADDYFILE" && -f "$CADDYFILE" ]] || fail "Die Caddyfile von $CNAME liegt nicht als Datei auf dem Server (erwartet als Mount nach /etc/caddy/Caddyfile)."
+    info "Caddyfile: $CADDYFILE, Netzwerk: $NET"
+
+    info "Tee-App mit dem Netzwerk $NET verbinden"
+    cat > "$APP_DIR/docker-compose.override.yml" <<YAML
+# Angelegt von scripts/setup-proxy.sh: verbindet die App mit dem Netzwerk des Caddy-Containers
+# $CNAME, damit dieser sie unter dem Namen tee-etiketten erreicht.
+services:
+  app:
+    networks:
+      default: {}
+      proxy:
+        aliases: [tee-etiketten]
+networks:
+  proxy:
+    external: true
+    name: $NET
+YAML
+    (cd "$APP_DIR" && docker compose up -d)
+
+    BACKUP=""
+    if grep -qF "$DOMAIN" "$CADDYFILE"; then
+      info "$DOMAIN steht schon in der Caddyfile, keine Änderung"
+    else
+      BACKUP="$CADDYFILE.bak-$(date +%Y%m%d%H%M%S)"
+      cp "$CADDYFILE" "$BACKUP"
+      cat >> "$CADDYFILE" <<CADDY
+
+# Tee-Etiketten (eingetragen von sticker-plot/scripts/setup-proxy.sh)
+$DOMAIN {
+	encode gzip
+	request_body {
+		max_size 64MB
+	}
+	reverse_proxy tee-etiketten:3000
+}
+CADDY
+      info "Block für $DOMAIN ergänzt, Sicherung: $BACKUP"
+    fi
+
+    if ! docker exec "$CID" caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile; then
+      # Datei inhaltlich zurückschreiben (gleiche Datei, damit der Mount erhalten bleibt)
+      [[ -n "$BACKUP" ]] && cat "$BACKUP" > "$CADDYFILE"
+      fail "Caddy lehnt die Konfiguration ab, Änderung zurückgenommen."
+    fi
+    docker exec "$CID" caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile
+    info "Caddy neu geladen, das Zertifikat für $DOMAIN wird jetzt automatisch geholt"
+    echo
+    echo "Hinweis: Überschreibt die andere App ihre Caddyfile bei eigenen Updates (z. B. aus ihrem"
+    echo "Git-Repository), den obigen Block auch dort eintragen. Die Netzwerkverbindung der Tee-App"
+    echo "bleibt dauerhaft bestehen (docker-compose.override.yml)."
     ;;
   "")
     fail "Auf Port 80 läuft kein Webserver. Dann einfach install-server.sh ausführen, es richtet Caddy ein."

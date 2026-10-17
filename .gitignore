@@ -11,3 +11,6 @@ node_modules/
 /data/
 /poc/out/
 /test-output/
+
+# serverspezifisch, angelegt von scripts/setup-proxy.sh
+/docker-compose.override.yml
