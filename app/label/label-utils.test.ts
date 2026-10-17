@@ -4,7 +4,7 @@ import { contrastRatio, fillColor, inkColor } from "./color";
 import { DEFAULT_SHEET, labelBox, layoutSequence, nextFreeSlot, referencePoints, validateGeometry } from "./geometry";
 import { resolveMotif } from "./motifs";
 import { normalizeParams } from "./template";
-import { hyphenate, normalizeParagraphs, parseEmphasis, titleCase, unsupportedChars } from "./text";
+import { hyphenate, normalizeParagraphs, parseEmphasis, parseMarkup, stripMarkup, titleCase, unsupportedChars } from "./text";
 
 describe("Text", () => {
   it("setzt weiche Trennstriche nach deutschen Regeln, nicht in Adressen", () => {
@@ -21,6 +21,19 @@ describe("Text", () => {
       { text: "Mandeln", bold: true },
       { text: ", Aroma", bold: false },
     ]);
+  });
+  it("kombiniert fett, kursiv und unterstrichen", () => {
+    const seg = (text: string, bold = false, italic = false, underline = false) => ({ text, bold, italic, underline });
+    expect(parseMarkup("Tee, ++Mandeln++, _Sahne_")).toEqual([seg("Tee, "), seg("Mandeln", false, false, true), seg(", "), seg("Sahne", false, true)]);
+    expect(parseMarkup("*++Haselnüsse++*")).toEqual([seg("Haselnüsse", true, false, true)]);
+    expect(parseMarkup("_*++Soja++*_ und mehr")).toEqual([seg("Soja", true, true, true), seg(" und mehr")]);
+    expect(parseMarkup("*Milch*_eiweiß_")).toEqual([seg("Milch", true), seg("eiweiß", false, true)]);
+  });
+  it("lässt einzelne Zeichen und normale Texte unverändert", () => {
+    for (const t of ["1 TL / 250 ml", "Tee_Mischung", "Preis * Menge", "5 + 5 = 10", "C++ Tee", "**", "____"]) {
+      expect(stripMarkup(t)).toBe(t);
+    }
+    expect(stripMarkup("Tee *Mandel*stücke und ein * Stern")).toBe("Tee Mandelstücke und ein * Stern");
   });
   it("findet nicht druckbare Zeichen", () => {
     expect(unsupportedChars("Čaj ő Łódź – „Tee“ 80 °C ½ € …")).toEqual([]);

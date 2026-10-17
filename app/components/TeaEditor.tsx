@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useRef, useState, type ReactNode } from "react";
 import { Form, useNavigation } from "react-router";
 import { isHexColor } from "~/label/color";
 import { labelsPerSheet, layoutPages, type SheetGeometry } from "~/label/geometry";
@@ -8,6 +8,7 @@ import { colorForTeaType, TEA_TYPES } from "~/label/tea-types";
 import type { TemplateParams } from "~/label/template";
 import { unsupportedChars } from "~/label/text";
 import { FitMeter, FittedPreview, type FitReport } from "./FittedPreview";
+import { FormatToolbar } from "./FormatToolbar";
 
 export interface TeaFormValues {
   name: string;
@@ -94,6 +95,7 @@ export function TeaEditor({
   const [colorTouched, setColorTouched] = useState(!isNew && colorForTeaType(initial.teaType) !== initial.color);
   const [report, setReport] = useState<FitReport | null>(null);
   const [view, setView] = useState<"label" | "sheet">("label");
+  const ingredientsRef = useRef<HTMLTextAreaElement>(null);
 
   const dirty = JSON.stringify(initial) !== JSON.stringify(values);
   const defaultTemplate = templates.find((t) => t.isDefault) ?? templates[0]!;
@@ -194,14 +196,29 @@ export function TeaEditor({
           </div>
 
           <div>
-            <label className="field-label" htmlFor="ingredients">
-              Zutaten
-            </label>
-            <textarea id="ingredients" name="ingredients" rows={3} value={values.ingredients} onChange={set("ingredients")} className="field-input" placeholder="z. B. Grüner Tee, *Mandel*stücke, Aroma" />
+            <div className="flex items-end justify-between gap-2">
+              <label className="field-label" htmlFor="ingredients">
+                Zutaten
+              </label>
+              <FormatToolbar fieldRef={ingredientsRef} value={values.ingredients} onChange={(ingredients) => setValues((v) => ({ ...v, ingredients }))} />
+            </div>
+            <textarea
+              ref={ingredientsRef}
+              id="ingredients"
+              name="ingredients"
+              rows={3}
+              value={values.ingredients}
+              onChange={set("ingredients")}
+              className="field-input"
+              placeholder="z. B. Grüner Tee, *Mandel*stücke, Aroma"
+            />
             {errors?.ingredients ? (
               <p className="field-error">{errors.ingredients}</p>
             ) : (
-              <p className="field-hint">Allergene mit Sternchen hervorheben: *Mandeln* wird fett gedruckt.</p>
+              <p className="field-hint">
+                Allergene hervorheben: Wort markieren und <b>F</b> (fett), <u>U</u> (unterstrichen) oder <i>K</i> (kursiv) drücken. Im Text steht dann *fett*,
+                ++unterstrichen++ oder _kursiv_, auch kombiniert.
+              </p>
             )}
           </div>
 

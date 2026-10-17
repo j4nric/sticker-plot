@@ -16,7 +16,7 @@ Texterkennung übernommen.
 | Bereich | Inhalt |
 |---|---|
 | Tees | Anlegen, bearbeiten, duplizieren, archivieren und wiederherstellen, endgültig löschen (nur Admin), Suche |
-| Etikett | Name, Teeart, Beschreibung mit Absätzen, Zutaten mit fett gedruckten Allergenen (`*Mandeln*`), Zubereitung (Menge, °C, Ziehzeit), Bio-Kennzeichnung, Preis, EAN-Strichcode, QR-Code, eigenes Bild oder Motiv (Tasse, Kanne, Kräuter, Früchte) |
+| Etikett | Name, Teeart, Beschreibung mit Absätzen, Zutaten mit fett, unterstrichen oder kursiv hervorgehobenen Allergenen (Knöpfe F/U/K), frei gestaltbare Fußzeile, Zubereitung (Menge, °C, Ziehzeit), Bio-Kennzeichnung, Preis, EAN-Strichcode, QR-Code, eigenes Bild oder Motiv (Tasse, Kanne, Kräuter, Früchte) |
 | Vorschau | Etikett und Bogen in echter Größe, Platzanzeige, Warnung bei Überlauf und nicht druckbaren Zeichen |
 | Drucken | Drucker, Bogenformat, Anzahl, erstes freies Feld (pro Drucker gemerkt), Füllmenge/MHD/Los, PDF-Vorschau im Dialog, Sammeldruck mehrerer Sorten auf einem Bogen |
 | Kalibrierung | Testbogen mit Fadenkreuzen und Randmarken, vier Ablesewerte ergeben Versatz und Skalierung |

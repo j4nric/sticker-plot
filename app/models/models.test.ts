@@ -54,6 +54,7 @@ describe("Startdaten und neue Funktionen", () => {
     expect(listFormats()[0]!.columns).toBe(6);
     expect(listTemplates()[0]!.params.variant).toBe("klassisch");
     expect(getSettings().overflowPolicy).toBe("block");
+    expect(getSettings().shop).toMatchObject({ separator: "blatt", footerItalic: true });
   });
 
   it("archiviert, dupliziert und löscht Tees", async () => {
@@ -67,6 +68,13 @@ describe("Startdaten und neue Funktionen", () => {
     expect(listTeas().some((x) => x.id === t.id)).toBe(false);
     expect(listTeas({ archived: true }).map((x) => x.id)).toContain(t.id);
     expect(countArchived()).toBe(1);
+  });
+
+  it("speichert eine angepasste Fußzeile", async () => {
+    const { getSettings, saveSettings } = await import("./settings.server");
+    const s = getSettings();
+    saveSettings({ ...s, shop: { ...s.shop, name: "*Teeladen*", url: "", address: "Hauptstraße 5", separator: "punkt", footerItalic: false } });
+    expect(getSettings().shop).toMatchObject({ name: "*Teeladen*", url: "", address: "Hauptstraße 5", separator: "punkt", footerItalic: false });
   });
 
   it("schreibt das Startfeld eines Druckers fort", async () => {

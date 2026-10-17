@@ -36,7 +36,10 @@ Etiketten werden in dieser Reihenfolge ab dem ersten freien Feld verteilt.
 2. Name, Teeart, Beschreibung und Zutaten eintragen.
    - Bekannte Teearten setzen Farbe und Motiv automatisch.
    - Leerzeilen in der Beschreibung werden als Absatz übernommen.
-   - Allergene in den Zutaten mit Sternchen markieren: `*Mandeln*` wird fett gedruckt.
+   - Allergene in den Zutaten hervorheben: Wort markieren und über dem Feld **F** (fett),
+     **U** (unterstrichen) oder **K** (kursiv) drücken. Im Text erscheinen dann Zeichen:
+     `*Mandeln*` fett, `++Mandeln++` unterstrichen, `_Mandeln_` kursiv. Kombinationen sind
+     möglich, z. B. `*++Soja++*` für fett und unterstrichen.
 3. Optional: Zubereitung (Menge, Temperatur, Ziehzeit), unter **Weitere Angaben** Bio, Preis,
    Strichcode (EAN), Link für einen QR-Code und Haltbarkeit in Monaten.
 4. Unter **Gestaltung** Vorlage und Motiv wählen. Nach dem Anlegen lässt sich ein eigenes Bild
@@ -74,7 +77,7 @@ Die Randmarken an den Papierkanten zeigen, ab wie vielen Millimetern der Drucker
 | Import | Alte Photoshop-PDFs hochladen, erkannte Daten prüfen und übernehmen; CSV-Import und -Export |
 | Vorlagen | Gestaltung: Variante, Schriften, Schriftgrößen, Motivhöhe, sichtbare Elemente |
 | Bogenformate | Papiergröße und Etikettenraster für andere Etikettenbögen |
-| Einstellungen | Shopname, Internetadresse, Anschrift, Öko-Kontrollstelle, Verhalten bei zu langem Text |
+| Einstellungen | Fußzeile (Texte links/rechts, zweite Zeile, Trenner, kursiv, Formatierung), Öko-Kontrollstelle, Verhalten bei zu langem Text |
 | Benutzer | Zugänge anlegen, Rollen, Passwörter, deaktivieren |
 | Protokoll | Wer hat wann was geändert |
 | Sicherung | Datenbank herunterladen, Sicherung anlegen oder wiederherstellen |
