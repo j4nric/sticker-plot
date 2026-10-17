@@ -1,4 +1,16 @@
-node_modules/
-poc/out/
-*.log
 .DS_Store
+.env
+node_modules/
+*.log
+
+# React Router
+/.react-router/
+/build/
+
+# Lokale Daten (SQLite) und Testausgaben
+/data/
+/poc/out/
+/test-output/
+
+# serverspezifisch, angelegt von scripts/setup-proxy.sh
+/docker-compose.override.yml

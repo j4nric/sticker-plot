@@ -1,0 +1,52 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Source Serif 4", ui-serif, Georgia, serif;
+  --font-display: "Oswald", "Arial Narrow", sans-serif;
+  --color-brand-50: #f2f8ef;
+  --color-brand-100: #e0efd9;
+  --color-brand-600: #3f7f32;
+  --color-brand-700: #326628;
+  --color-brand-800: #284f21;
+}
+
+html,
+body {
+  @apply bg-stone-100 text-stone-900;
+}
+
+@utility btn {
+  @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50;
+}
+
+@utility btn-primary {
+  @apply btn bg-brand-700 text-white hover:bg-brand-800;
+}
+
+@utility btn-secondary {
+  @apply btn border border-stone-300 bg-white text-stone-800 hover:bg-stone-50;
+}
+
+@utility btn-danger {
+  @apply btn border border-red-200 bg-white text-red-700 hover:bg-red-50;
+}
+
+@utility field-label {
+  @apply mb-1 block text-sm font-semibold text-stone-700;
+}
+
+@utility field-input {
+  @apply block w-full rounded-lg border border-stone-300 bg-white px-3 py-2 text-base shadow-sm outline-none focus:border-brand-600 focus:ring-2 focus:ring-brand-100;
+}
+
+@utility field-error {
+  @apply mt-1 text-sm text-red-700;
+}
+
+@utility field-hint {
+  @apply mt-1 text-xs text-stone-500;
+}
+
+@utility card {
+  @apply rounded-xl border border-stone-200 bg-white p-5 shadow-sm;
+}

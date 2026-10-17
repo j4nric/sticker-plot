@@ -1,0 +1,48 @@
+name: Deploy
+
+# Spielt den aktuellen Stand per SSH auf dem Server ein.
+# Einrichtung: unter Settings → Secrets and variables → Actions anlegen
+#   DEPLOY_HOST     Server-Adresse (IP oder Name)
+#   DEPLOY_SSH_KEY  privater SSH-Schlüssel mit root-Zugang (oder sudo ohne Passwort)
+#   DEPLOY_DOMAIN   Domain der App, z. B. tee-62-83-23-90.sslip.io
+# optional:
+#   DEPLOY_USER     Benutzer für SSH (Standard: root)
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+
+jobs:
+  deploy:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    concurrency: deploy
+    env:
+      HOST: ${{ secrets.DEPLOY_HOST }}
+      DOMAIN: ${{ secrets.DEPLOY_DOMAIN }}
+      SSH_USER: ${{ secrets.DEPLOY_USER || 'root' }}
+      BRANCH: ${{ github.event.workflow_run.head_branch || github.ref_name }}
+    steps:
+      - name: Prüfen, ob das Deployment eingerichtet ist
+        id: check
+        run: |
+          if [ -z "$HOST" ] || [ -z "$DOMAIN" ]; then
+            echo "Secrets DEPLOY_HOST/DEPLOY_DOMAIN fehlen – Deployment wird übersprungen."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: SSH-Schlüssel einrichten
+        if: steps.check.outputs.skip != 'true'
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts
+      - name: Update auf dem Server
+        if: steps.check.outputs.skip != 'true'
+        run: |
+          ssh -i ~/.ssh/id_deploy "$SSH_USER@$HOST" \
+            "curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/$BRANCH/scripts/install-server.sh -o /tmp/install-server.sh && \
+             sudo env NONINTERACTIVE=1 BRANCH='$BRANCH' bash /tmp/install-server.sh '$DOMAIN'"
