@@ -132,8 +132,7 @@ if ! command -v caddy >/dev/null 2>&1; then
     BLOCKERS="$(port_blockers)"
     if [[ -n "${BLOCKERS// /}" ]]; then
       warn "Port 80/443 ist weiterhin belegt ($BLOCKERS). Caddy wird nicht installiert."
-      warn "Die App läuft auf 127.0.0.1:3000. Den vorhandenen Webserver als Reverse Proxy einrichten,"
-      warn "siehe docs/betrieb.md, Abschnitt 'Vorhandener Webserver'."
+      warn "Die App läuft dann nur intern; am Ende steht, wie der vorhandene Webserver sie einbindet."
       SETUP_CADDY=0
     fi
   fi
@@ -190,6 +189,20 @@ else
   info "Vorhandene .env wird beibehalten"
 fi
 
+# ---------------------------------------------------------------- interner Port
+# Standard 3000; ist der Port schon von einer anderen App belegt, wird der nächste freie gewählt
+APP_PORT="$(grep -E '^APP_PORT=[0-9]+$' .env | cut -d= -f2 || true)"
+if [[ -z "$APP_PORT" ]]; then
+  APP_PORT=3000
+  if [[ -z "$(docker compose ps -q app 2>/dev/null)" ]]; then
+    while ss -ltnH "( sport = :$APP_PORT )" 2>/dev/null | grep -q .; do APP_PORT=$((APP_PORT + 1)); done
+  fi
+  if [[ $APP_PORT -ne 3000 ]]; then
+    echo "APP_PORT=$APP_PORT" >> .env
+    info "Port 3000 ist belegt, die App nutzt intern Port $APP_PORT"
+  fi
+fi
+
 # ---------------------------------------------------------------- Caddy konfigurieren
 if [[ $SETUP_CADDY -eq 1 ]]; then
   info "HTTPS für $DOMAIN einrichten"
@@ -200,7 +213,7 @@ $DOMAIN {
 	request_body {
 		max_size 64MB
 	}
-	reverse_proxy 127.0.0.1:3000
+	reverse_proxy 127.0.0.1:$APP_PORT
 }
 EOF
   CADDYFILE=/etc/caddy/Caddyfile
@@ -229,7 +242,7 @@ docker compose up -d --build
 
 info "Auf Start warten"
 for _ in $(seq 1 60); do
-  if curl -fs -o /dev/null http://127.0.0.1:3000/login; then READY=1; break; fi
+  if curl -fs -o /dev/null "http://127.0.0.1:$APP_PORT/login"; then READY=1; break; fi
   sleep 2
 done
 [[ "${READY:-0}" -eq 1 ]] || fail "Die App antwortet nicht. Logs ansehen mit: cd $APP_DIR && docker compose logs app"
@@ -246,7 +259,13 @@ if [[ $SETUP_CADDY -eq 1 ]]; then
   echo "Die App ist erreichbar unter: https://$DOMAIN"
   echo "Das HTTPS-Zertifikat holt Caddy beim ersten Aufruf automatisch."
 else
-  echo "Die App läuft auf http://127.0.0.1:3000 (Reverse Proxy noch einrichten)."
+  echo "Die App läuft intern auf http://127.0.0.1:$APP_PORT."
+  echo "Damit sie unter https://$DOMAIN erreichbar ist, den vorhandenen Webserver weiterleiten lassen."
+  if command -v nginx >/dev/null 2>&1 || command -v apache2 >/dev/null 2>&1; then
+    echo "Einrichten mit:  sudo bash $APP_DIR/scripts/setup-proxy.sh $DOMAIN"
+  else
+    echo "Anleitung: docs/betrieb.md, Abschnitt 'Vorhandener Webserver als Reverse Proxy'."
+  fi
 fi
 echo "Anmeldung:       Benutzer 'admin' mit dem Passwort aus APP_PASSWORD (Datei $APP_DIR/.env)."
 echo "                 Weitere Zugänge für das Personal unter Verwaltung → Benutzer anlegen."

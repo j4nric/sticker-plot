@@ -9,7 +9,8 @@ services:
       DATABASE_PATH: /app/data/sticker-plot.db
     ports:
       # nur lokal erreichbar; nach außen über Reverse Proxy mit HTTPS (siehe docs/betrieb.md)
-      - "127.0.0.1:3000:3000"
+      # interner Port: Standard 3000, abweichend über APP_PORT in .env (z. B. wenn eine andere App 3000 nutzt)
+      - "127.0.0.1:${APP_PORT:-3000}:3000"
     volumes:
       - tee-data:/app/data
     shm_size: "512mb"

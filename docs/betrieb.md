@@ -60,40 +60,24 @@ bash install-server.sh <domain>
 
 ### Vorhandener Webserver als Reverse Proxy
 
-Nur nötig, wenn Apache oder nginx weiterlaufen sollen. Die App lauscht auf `127.0.0.1:3000`.
+Läuft auf dem Server schon eine andere Website mit nginx oder Apache, bleibt dieser Webserver in
+Betrieb und leitet nur die Adresse der Tee-App an sie weiter. Ablauf:
 
-**nginx** (`/etc/nginx/sites-available/sticker-plot`, danach nach `sites-enabled` verlinken):
+1. Installationsskript ausführen und die Frage, ob der Webserver abgeschaltet werden soll, mit
+   **N** beantworten. Die App läuft dann intern. Ist Port 3000 schon von der anderen App belegt,
+   wählt das Skript automatisch einen freien Port und trägt ihn als `APP_PORT` in `.env` ein.
+2. Weiterleitung und HTTPS einrichten:
 
-```nginx
-server {
-    listen 80;
-    server_name tee-62-83-23-90.sslip.io;
-    client_max_body_size 2m;
-    location / {
-        proxy_pass http://127.0.0.1:3000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_read_timeout 120s;
-    }
-}
-```
+   ```bash
+   sudo bash /opt/sticker-plot/scripts/setup-proxy.sh <domain>
+   ```
 
-**Apache** (`a2enmod proxy proxy_http headers`, dann eine Site-Datei):
+   Das Skript erkennt nginx oder Apache, legt eine zusätzliche Konfiguration nur für diese Domain
+   an, prüft sie und holt mit certbot ein Zertifikat. Ist die Konfiguration fehlerhaft, wird sie
+   zurückgenommen; die andere Website bleibt unberührt.
 
-```apache
-<VirtualHost *:80>
-    ServerName tee-62-83-23-90.sslip.io
-    ProxyPreserveHost On
-    ProxyPass / http://127.0.0.1:3000/
-    ProxyPassReverse / http://127.0.0.1:3000/
-    ProxyTimeout 120
-</VirtualHost>
-```
-
-Anschließend ein HTTPS-Zertifikat holen, z. B. mit
-`apt install certbot python3-certbot-nginx && certbot --nginx -d <domain>` (bzw.
-`python3-certbot-apache` und `--apache`). Ohne HTTPS funktioniert der Login nicht.
+Gehört Port 80 einem Docker-Container (z. B. Traefik), muss die Weiterleitung dort eingetragen
+werden: Domain → `127.0.0.1:<APP_PORT>`.
 
 ## Manuelle Installation
 
@@ -107,7 +91,7 @@ docker compose up -d --build
 docker compose logs -f app      # Start prüfen
 ```
 
-Die App lauscht dann nur lokal auf Port 3000. Datenbank und Sicherungen liegen im Docker-Volume
+Die App lauscht dann nur lokal auf Port 3000 (oder `APP_PORT` aus `.env`). Datenbank und Sicherungen liegen im Docker-Volume
 `tee-data`. Beim ersten Start wird die Datenbank angelegt und ein Standarddrucker erstellt.
 
 ## HTTPS mit Caddy
