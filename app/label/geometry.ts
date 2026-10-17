@@ -21,6 +21,18 @@ export interface SheetGeometry {
   pitchY: number;
 }
 
+/** Anzahl Etiketten und erstes freies Feld eines Druckauftrags. */
+export interface PrintLayout {
+  count: number;
+  start: number;
+}
+
+/** Höchstzahl Etiketten je Druckauftrag (Formular und Server). */
+export const MAX_PRINT_LABELS = 600;
+
+/** Felder eines Bogenformats in der Reihenfolge des Formulars. */
+export const GEOMETRY_FIELDS = ["pageWidth", "pageHeight", "columns", "rows", "labelWidth", "labelHeight", "originX", "originY", "pitchX", "pitchY"] as const;
+
 export const DEFAULT_SHEET: SheetGeometry = {
   pageWidth: 297,
   pageHeight: 210,
@@ -34,11 +46,7 @@ export const DEFAULT_SHEET: SheetGeometry = {
   pitchY: 103.1,
 };
 
-/** @deprecated Alias für ältere Aufrufer */
-export const SHEET = DEFAULT_SHEET;
-
 export const labelsPerSheet = (g: SheetGeometry) => g.columns * g.rows;
-export const LABELS_PER_SHEET = labelsPerSheet(DEFAULT_SHEET);
 
 export interface Point {
   x: number;
@@ -149,7 +157,7 @@ export function calibrationStyle(c: Calibration, g: SheetGeometry = DEFAULT_SHEE
  * Verteilt `count` Etiketten ab Position `start` (1-basiert) auf Bögen.
  * Ergebnis: pro Bogen ein Array mit einem Eintrag je Feld, true = drucken.
  */
-export function layoutPages(count: number, start = 1, perSheet = LABELS_PER_SHEET): boolean[][] {
+export function layoutPages(count: number, start: number, perSheet: number): boolean[][] {
   return layoutSequence(Array(Math.max(0, Math.floor(count))).fill(true), start, perSheet).map((p) => p.map((v) => v !== null));
 }
 
@@ -157,7 +165,7 @@ export function layoutPages(count: number, start = 1, perSheet = LABELS_PER_SHEE
  * Verteilt eine Folge beliebiger Einträge (z. B. verschiedene Tees) ab
  * Position `start` auf Bögen. Freie Felder sind null.
  */
-export function layoutSequence<T>(items: T[], start = 1, perSheet = LABELS_PER_SHEET): (T | null)[][] {
+export function layoutSequence<T>(items: T[], start: number, perSheet: number): (T | null)[][] {
   const first = clamp(Math.floor(start), 1, perSheet) - 1;
   const total = first + items.length;
   const pageCount = Math.max(1, Math.ceil(total / perSheet));
@@ -174,7 +182,7 @@ export function layoutSequence<T>(items: T[], start = 1, perSheet = LABELS_PER_S
 }
 
 /** Erstes freies Feld nach einem Druck (1-basiert); ein voller Bogen beginnt wieder bei 1. */
-export function nextFreeSlot(start: number, count: number, perSheet = LABELS_PER_SHEET): number {
+export function nextFreeSlot(start: number, count: number, perSheet: number): number {
   const used = (clamp(Math.floor(start), 1, perSheet) - 1 + Math.max(0, count)) % perSheet;
   return used + 1;
 }

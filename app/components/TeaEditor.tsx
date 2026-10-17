@@ -1,14 +1,14 @@
 import { useMemo, useRef, useState, type ReactNode } from "react";
 import { Form, useNavigation } from "react-router";
-import { isHexColor } from "~/label/color";
-import { labelsPerSheet, layoutPages, type SheetGeometry } from "~/label/geometry";
-import { Label, SheetPage, type LabelContent, type ShopInfo } from "~/label/Label";
+import { validColor } from "~/label/color";
+import type { PrintLayout, SheetGeometry } from "~/label/geometry";
+import type { LabelContent, ShopInfo } from "~/label/Label";
 import { MOTIFS } from "~/label/motifs";
-import { colorForTeaType, TEA_TYPES } from "~/label/tea-types";
+import { colorForTeaType, DEFAULT_TEA_COLOR, TEA_TYPES } from "~/label/tea-types";
 import type { TemplateParams } from "~/label/template";
 import { unsupportedChars } from "~/label/text";
-import { FitMeter, FittedPreview, type FitReport } from "./FittedPreview";
 import { FormatToolbar } from "./FormatToolbar";
+import { LabelPreviewPanel } from "./LabelPreviewPanel";
 
 export interface TeaFormValues {
   name: string;
@@ -34,7 +34,7 @@ export const EMPTY_TEA: TeaFormValues = {
   teaType: "",
   description: "",
   ingredients: "",
-  color: "#4f9a3f",
+  color: DEFAULT_TEA_COLOR,
   motif: "auto",
   templateId: "",
   brewAmount: "",
@@ -48,11 +48,6 @@ export const EMPTY_TEA: TeaFormValues = {
 };
 
 const SWATCHES = Array.from(new Set(TEA_TYPES.map((t) => t.color)));
-
-export interface PrintLayout {
-  count: number;
-  start: number;
-}
 
 export interface TemplateOption {
   id: number;
@@ -93,8 +88,7 @@ export function TeaEditor({
   const saving = navigation.state === "submitting" && navigation.formData?.get("intent") === "save";
   const [values, setValues] = useState<TeaFormValues>(initial);
   const [colorTouched, setColorTouched] = useState(!isNew && colorForTeaType(initial.teaType) !== initial.color);
-  const [report, setReport] = useState<FitReport | null>(null);
-  const [view, setView] = useState<"label" | "sheet">("label");
+  const [overflowing, setOverflowing] = useState(false);
   const ingredientsRef = useRef<HTMLTextAreaElement>(null);
 
   const dirty = JSON.stringify(initial) !== JSON.stringify(values);
@@ -117,21 +111,12 @@ export function TeaEditor({
     setValues((v) => ({ ...v, color }));
   };
 
-  const content: LabelContent = {
-    ...values,
-    color: isHexColor(values.color) ? values.color : "#777777",
-    brewTemp: values.brewTemp ? Number(values.brewTemp) || null : null,
-    imageSrc: imageSrc ?? null,
-  };
-  const fitKey = JSON.stringify(content) + view + JSON.stringify(template.params) + JSON.stringify(format) + (printLayout ? `${printLayout.count}/${printLayout.start}` : "");
-  const firstSheet = useMemo(
-    () => layoutPages(printLayout?.count ?? labelsPerSheet(format), printLayout?.start ?? 1, labelsPerSheet(format))[0]!,
-    [printLayout?.count, printLayout?.start, format],
+  const content: LabelContent = useMemo(
+    () => ({ ...values, color: validColor(values.color), brewTemp: values.brewTemp ? Number(values.brewTemp) || null : null, imageSrc: imageSrc ?? null }),
+    [values, imageSrc],
   );
 
   const badChars = unsupportedChars([values.name, values.teaType, values.description, values.ingredients, values.brewAmount, values.brewTime, values.price].join(""));
-  const previewScale = Math.min(1.8, 330 / ((format.labelWidth * 96) / 25.4), 640 / ((format.labelHeight * 96) / 25.4));
-  const sheetScale = Math.min(0.42, 470 / ((format.pageWidth * 96) / 25.4));
 
   const field = (key: keyof TeaFormValues, label: string, props: Record<string, unknown> = {}, hint?: string) => (
     <div>
@@ -179,7 +164,7 @@ export function TeaEditor({
                   />
                 ))}
                 <label className="relative ml-1 inline-flex cursor-pointer items-center gap-1 text-xs text-stone-600" title="Eigene Farbe">
-                  <input type="color" value={isHexColor(values.color) ? values.color : "#777777"} onChange={(e) => pickColor(e.target.value)} className="size-7 cursor-pointer rounded border border-stone-300 bg-white p-0.5" />
+                  <input type="color" value={validColor(values.color)} onChange={(e) => pickColor(e.target.value)} className="size-7 cursor-pointer rounded border border-stone-300 bg-white p-0.5" />
                   eigene
                 </label>
               </div>
@@ -282,7 +267,7 @@ export function TeaEditor({
               Diese Zeichen können nicht gedruckt werden und müssen entfernt werden: <b>{badChars.join(" ")}</b>
             </p>
           ) : null}
-          {report && report.overflow > 0 ? (
+          {overflowing ? (
             <p className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
               Der Text passt selbst in kleinster Schrift nicht vollständig aufs Etikett (rot markiert). Bitte kürzen, sonst wird kein PDF erstellt.
             </p>
@@ -300,33 +285,7 @@ export function TeaEditor({
       </div>
 
       <div className="space-y-4">
-        <div className="card space-y-3">
-          <div className="flex items-center justify-between gap-3">
-            <h2 className="font-display text-lg tracking-wide uppercase">Vorschau</h2>
-            <div className="flex rounded-lg border border-stone-300 p-0.5 text-sm">
-              {(["label", "sheet"] as const).map((v) => (
-                <button key={v} type="button" onClick={() => setView(v)} className={`rounded-md px-3 py-1 ${view === v ? "bg-stone-800 text-white" : "text-stone-700"}`}>
-                  {v === "label" ? "Etikett" : "Bogen"}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="flex justify-center overflow-x-auto">
-            {view === "label" ? (
-              <FittedPreview widthMm={format.labelWidth} heightMm={format.labelHeight} scale={previewScale} fitKey={fitKey} onFit={setReport} className="shadow-lg ring-1 ring-stone-200">
-                <Label data={content} shop={shop} template={template.params} size={format} />
-              </FittedPreview>
-            ) : (
-              <FittedPreview widthMm={format.pageWidth} heightMm={format.pageHeight} scale={sheetScale} fitKey={fitKey} onFit={setReport} className="shadow-lg ring-1 ring-stone-200">
-                <SheetPage format={format} slots={firstSheet.map((filled) => (filled ? <Label data={content} shop={shop} template={template.params} size={format} /> : null))} />
-              </FittedPreview>
-            )}
-          </div>
-          <FitMeter report={report} min={template.params.bodyMin} max={template.params.bodyMax} />
-          <p className="text-center text-xs text-stone-500">
-            {view === "label" ? "Darstellung entspricht dem Druck." : "Erster Bogen ohne Druckerkorrektur, freie Felder bleiben leer."}
-          </p>
-        </div>
+        <LabelPreviewPanel content={content} shop={shop} template={template.params} format={format} printLayout={printLayout} onOverflowChange={setOverflowing} />
         {renderAside?.({ dirty })}
       </div>
     </div>

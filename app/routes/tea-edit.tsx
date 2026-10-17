@@ -1,20 +1,18 @@
 import { useState } from "react";
 import { data, Form, Link, redirect, useFetcher, useSearchParams } from "react-router";
 import { PrintPanel, useDeviceChoice } from "~/components/PrintPanel";
-import { TeaEditor, type PrintLayout } from "~/components/TeaEditor";
+import { TeaEditor } from "~/components/TeaEditor";
 import { editorData, rawToForm, teaToForm } from "~/lib/editor.server";
 import { currentUser } from "~/lib/session.server";
 import { readTeaForm } from "~/lib/validation";
-import { labelsPerSheet } from "~/label/geometry";
+import { labelsPerSheet, type PrintLayout } from "~/label/geometry";
 import { audit } from "~/models/audit.server";
 import { archiveTea, deleteTea, duplicateTea, getTea, lastPrintJobs, updateTea } from "~/models/tea.server";
+import { formatDateTime } from "~/lib/locale";
+import { parseId } from "~/lib/params";
 import type { Route } from "./+types/tea-edit";
 
-function teaIdFrom(params: { teaId: string }) {
-  const id = Number(params.teaId);
-  if (!Number.isInteger(id) || id <= 0) throw data("Tee nicht gefunden", { status: 404 });
-  return id;
-}
+const teaIdFrom = (params: { teaId: string }) => parseId(params.teaId);
 
 export function meta({ loaderData }: Route.MetaArgs) {
   return [{ title: `${loaderData?.tea.name ?? "Tee"} · Tee-Etiketten` }];
@@ -78,8 +76,6 @@ export async function action({ request, params, context }: Route.ActionArgs) {
     }
   }
 }
-
-const dateTimeFmt = new Intl.DateTimeFormat("de-DE", { dateStyle: "medium", timeStyle: "short" });
 
 function ImageUpload({ teaId, imageSrc }: { teaId: number; imageSrc: string | null }) {
   const fetcher = useFetcher<{ error?: string }>();
@@ -191,7 +187,7 @@ export default function EditTea({ loaderData, actionData }: Route.ComponentProps
                 <ul className="space-y-1 text-sm text-stone-600">
                   {jobs.map((j) => (
                     <li key={j.id}>
-                      {dateTimeFmt.format(new Date(j.createdAt))} · {j.labelCount} Etiketten · {j.printer}
+                      {formatDateTime(j.createdAt)} · {j.labelCount} Etiketten · {j.printer}
                       {j.userName ? ` · ${j.userName}` : ""}
                     </li>
                   ))}

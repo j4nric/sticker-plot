@@ -24,6 +24,23 @@ const hasChromium = existsSync(chromiumPath ?? chromium.executablePath());
 const pageCount = async (pdf: Buffer) => (await PDFDocument.load(pdf)).getPageCount();
 const pageSize = async (pdf: Buffer) => (await PDFDocument.load(pdf)).getPage(0).getSize();
 
+describe("PDF-HTML", () => {
+  it("rendert jede Sorte nur einmal und verweist aus den Feldern darauf", () => {
+    const other: SheetItem = { content: { ...tea, name: "Assam" }, template: DEFAULT_TEMPLATE_PARAMS };
+    const html = labelSheetsHtml({ items: [...many(10), ...many(5, other)], shop, calibration: NO_CALIBRATION, start: 1 });
+    expect(html.match(/data-label-id=/g)).toHaveLength(2);
+    expect(html.match(/data-label-ref="0"/g)).toHaveLength(10);
+    expect(html.match(/data-label-ref="1"/g)).toHaveLength(5);
+  });
+
+  it("bettet nur die benötigten Schriften ein", () => {
+    const plain = labelSheetsHtml({ items: many(1), shop, calibration: NO_CALIBRATION, start: 1 });
+    expect(plain).not.toContain("Playfair Display");
+    const fancy: SheetItem = { content: tea, template: normalizeParams({ ...DEFAULT_TEMPLATE_PARAMS, titleFont: "playfair" }) };
+    expect(labelSheetsHtml({ items: [fancy], shop, calibration: NO_CALIBRATION, start: 1 })).toContain('font-family:"Playfair Display"');
+  });
+});
+
 describe.runIf(hasChromium)("PDF-Erzeugung", () => {
   afterAll(() => closeBrowser());
 

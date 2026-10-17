@@ -20,6 +20,8 @@ export interface PrintOrder {
   force?: boolean;
   /** nur ansehen: nicht protokollieren, Startfeld nicht fortschreiben */
   preview?: boolean;
+  /** Kennung des Klicks auf „PDF erstellen“; derselbe Auftrag zählt nur einmal */
+  jobId?: string;
   user: SessionUser;
   title: string;
 }
@@ -28,7 +30,26 @@ export type PrintOutcome =
   | { ok: true; pdf: Buffer; nextSlot: number }
   | { ok: false; status: 400 | 404 | 422; message: string; overflowing?: number };
 
+/**
+ * Zuletzt erzeugte Aufträge: Lädt der Browser oder PDF-Betrachter dieselbe
+ * Adresse erneut (Neu laden, Herunterladen, Drucken aus der Vorschau), kommt
+ * das fertige PDF ohne neuen Protokolleintrag und ohne das Startfeld noch
+ * einmal fortzuschreiben.
+ */
+const recentJobs = new Map<string, { pdf: Buffer; nextSlot: number; at: number }>();
+const RECENT_MAX = 8;
+const RECENT_MS = 15 * 60 * 1000;
+
+function rememberJob(id: string, pdf: Buffer, nextSlot: number) {
+  const now = Date.now();
+  for (const [key, job] of recentJobs) if (now - job.at > RECENT_MS) recentJobs.delete(key);
+  while (recentJobs.size >= RECENT_MAX) recentJobs.delete(recentJobs.keys().next().value!);
+  recentJobs.set(id, { pdf, nextSlot, at: now });
+}
+
 export async function printLabels(order: PrintOrder): Promise<PrintOutcome> {
+  const repeated = order.jobId && !order.preview ? recentJobs.get(`${order.user.id}:${order.jobId}`) : undefined;
+  if (repeated) return { ok: true, pdf: repeated.pdf, nextSlot: repeated.nextSlot };
   if (order.printerId && !getPrinter(order.printerId)) {
     return { ok: false, status: 404, message: "Der gewählte Drucker existiert nicht mehr. Bitte die Seite neu laden und einen Drucker wählen." };
   }
@@ -68,6 +89,7 @@ export async function printLabels(order: PrintOrder): Promise<PrintOutcome> {
     recordPrintJob({ teaId: t.id, teaName: t.name, printerId: printer.id, labelCount: t.count, startPosition: start, userName: order.user.username });
   }
   setNextSlot(printer.id, next);
+  if (order.jobId) rememberJob(`${order.user.id}:${order.jobId}`, pdf, next);
   return { ok: true, pdf, nextSlot: next };
 }
 

@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
-import { blob, integer, real, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { blob, index, integer, real, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { DEFAULT_TEA_COLOR } from "../label/tea-types";
 
 const createdAt = () =>
   integer("created_at", { mode: "timestamp" })
@@ -37,7 +38,7 @@ export const teas = sqliteTable("teas", {
   teaType: text("tea_type").notNull().default(""),
   description: text("description").notNull().default(""),
   ingredients: text("ingredients").notNull().default(""),
-  color: text("color").notNull().default("#4f9a3f"),
+  color: text("color").notNull().default(DEFAULT_TEA_COLOR),
   motif: text("motif").notNull().default("auto"),
   imageId: integer("image_id").references(() => images.id, { onDelete: "set null" }),
   templateId: integer("template_id").references(() => templates.id, { onDelete: "set null" }),
@@ -52,7 +53,7 @@ export const teas = sqliteTable("teas", {
   archivedAt: integer("archived_at", { mode: "timestamp" }),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
-});
+}, (t) => [index("teas_name_lower_idx").on(sql`lower(${t.name})`), index("teas_archived_idx").on(t.archivedAt)]);
 
 /** Etikettenbögen: Seitengröße und Raster in mm. */
 export const sheetFormats = sqliteTable("sheet_formats", {
@@ -98,7 +99,7 @@ export const printJobs = sqliteTable("print_jobs", {
   startPosition: integer("start_position").notNull(),
   userName: text("user_name").notNull().default(""),
   createdAt: createdAt(),
-});
+}, (t) => [index("print_jobs_tea_created_idx").on(t.teaId, t.createdAt)]);
 
 /** Schlüssel-Wert-Einstellungen (JSON-Werte). */
 export const settings = sqliteTable("settings", {
@@ -127,7 +128,7 @@ export const auditLog = sqliteTable("audit_log", {
   entityId: integer("entity_id"),
   summary: text("summary").notNull().default(""),
   createdAt: createdAt(),
-});
+}, (t) => [index("audit_log_created_idx").on(t.createdAt)]);
 
 /** Zwischenablage für den PDF-Import: erkannte Daten warten auf Prüfung. */
 export const importItems = sqliteTable("import_items", {
@@ -146,7 +147,7 @@ export const importItems = sqliteTable("import_items", {
   userName: text("user_name").notNull().default(""),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
-});
+}, (t) => [index("import_items_status_idx").on(t.status)]);
 
 export type Tea = typeof teas.$inferSelect;
 export type Printer = typeof printers.$inferSelect;

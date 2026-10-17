@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef, type ReactNode } from "react";
 import { fitLabelText } from "~/label/fit-text";
+import { formatCompact } from "~/lib/locale";
 
 export interface FitReport {
   /** Felder, die selbst in kleinster Schrift überlaufen */
@@ -39,17 +40,23 @@ export function FittedPreview({
   const ref = useRef<HTMLDivElement>(null);
   const onFitRef = useRef(onFit);
   onFitRef.current = onFit;
+  const lastReport = useRef("");
 
   useLayoutEffect(() => {
     let alive = true;
     const run = () => {
       const el = ref.current;
       if (!alive || !el) return;
-      const overflow = fitLabelText(el);
-      onFitRef.current?.({ overflow, bodyPt: readPt(el, ".tl-body"), titlePt: readPt(el, ".tl-title") });
+      const report: FitReport = { overflow: fitLabelText(el), bodyPt: readPt(el, ".tl-body"), titlePt: readPt(el, ".tl-title") };
+      // nur bei Änderung melden, sonst rendert das Formular bei jedem Tastendruck erneut
+      const key = JSON.stringify(report);
+      if (key === lastReport.current) return;
+      lastReport.current = key;
+      onFitRef.current?.(report);
     };
     run();
-    document.fonts.ready.then(run);
+    // Schriften noch nicht geladen: nach dem Laden erneut messen
+    if (document.fonts.status !== "loaded") void document.fonts.ready.then(run);
     document.fonts.addEventListener("loadingdone", run);
     const imgs = Array.from(ref.current?.querySelectorAll("img") ?? []);
     imgs.forEach((img) => img.addEventListener("load", run));
@@ -88,7 +95,7 @@ export function FitMeter({ report, min, max }: { report: FitReport | null; min: 
     <div className="text-xs text-stone-600" aria-live="polite">
       <div className="mb-1 flex justify-between">
         <span>Platz auf dem Etikett: {state.text}</span>
-        <span>Textgröße {pt.toLocaleString("de-DE", { maximumFractionDigits: 1 })} pt</span>
+        <span>Textgröße {formatCompact(pt, 1)} pt</span>
       </div>
       <div className="h-1.5 overflow-hidden rounded-full bg-stone-200">
         <div className={`h-full ${state.bar}`} style={{ width: `${state.width}%` }} />

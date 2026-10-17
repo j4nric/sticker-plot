@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyMeasurement, calibrationStyle, layoutPages, NO_CALIBRATION, referencePoints, SHEET, slotPosition } from "./geometry";
+import { applyMeasurement, calibrationStyle, layoutPages, NO_CALIBRATION, referencePoints, DEFAULT_SHEET as SHEET, slotPosition } from "./geometry";
 
 describe("slotPosition", () => {
   it("berechnet das 6x2-Raster aus dem Original-PDF", () => {
@@ -14,22 +14,22 @@ describe("slotPosition", () => {
 
 describe("layoutPages", () => {
   it("füllt einen ganzen Bogen", () => {
-    expect(layoutPages(12, 1)).toEqual([Array(12).fill(true)]);
+    expect(layoutPages(12, 1, 12)).toEqual([Array(12).fill(true)]);
   });
   it("beginnt auf angebrochenen Bögen beim ersten freien Feld", () => {
-    const [page] = layoutPages(3, 5);
+    const [page] = layoutPages(3, 5, 12);
     expect(page!.map((f, i) => (f ? i + 1 : 0)).filter(Boolean)).toEqual([5, 6, 7]);
   });
   it("verteilt auf mehrere Bögen und beginnt ab Bogen 2 bei Feld 1", () => {
-    const pages = layoutPages(10, 7);
+    const pages = layoutPages(10, 7, 12);
     expect(pages).toHaveLength(2);
     expect(pages[0]!.filter(Boolean)).toHaveLength(6);
     expect(pages[1]!.slice(0, 4).every(Boolean)).toBe(true);
     expect(pages[1]!.slice(4).some(Boolean)).toBe(false);
   });
   it("begrenzt ungültige Startwerte", () => {
-    expect(layoutPages(1, 99)[0]![11]).toBe(true);
-    expect(layoutPages(1, 0)[0]![0]).toBe(true);
+    expect(layoutPages(1, 99, 12)[0]![11]).toBe(true);
+    expect(layoutPages(1, 0, 12)[0]![0]).toBe(true);
   });
 });
 

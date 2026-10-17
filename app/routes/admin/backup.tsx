@@ -1,7 +1,8 @@
 import { data, Form, redirect, useNavigation } from "react-router";
 import { createBackup, listBackups, restoreDatabase } from "~/lib/backup.server";
-import { currentUser } from "~/lib/session.server";
+import { currentUser, destroySession, getSession } from "~/lib/session.server";
 import { audit } from "~/models/audit.server";
+import { formatDateTime } from "~/lib/locale";
 import type { Route } from "./+types/backup";
 
 export function meta() {
@@ -29,13 +30,12 @@ export async function action({ request, context }: Route.ActionArgs) {
     if (!result.ok) return data({ ok: undefined, error: result.error }, { status: 400 });
     // Benutzer der wiederhergestellten Datenbank können andere sein: neu anmelden
     audit(user.username, "sicherung wiederherstellen", "datenbank", null, `${file.name}, vorheriger Stand: ${result.safety}`);
-    throw redirect("/login");
+    throw redirect("/login", { headers: { "Set-Cookie": await destroySession(await getSession(request)) } });
   }
   throw data("Unbekannte Aktion", { status: 400 });
 }
 
 const size = (b: number) => (b > 1024 * 1024 ? `${(b / 1024 / 1024).toFixed(1)} MB` : `${Math.ceil(b / 1024)} KB`);
-const fmt = new Intl.DateTimeFormat("de-DE", { dateStyle: "medium", timeStyle: "short" });
 
 export default function Backup({ loaderData, actionData }: Route.ComponentProps) {
   const busy = useNavigation().state !== "idle";
@@ -67,7 +67,7 @@ export default function Backup({ loaderData, actionData }: Route.ComponentProps)
             {loaderData.backups.map((b) => (
               <li key={b.name} className="flex flex-wrap items-center gap-3 py-2">
                 <span className="flex-1 font-mono text-xs">{b.name}</span>
-                <span className="text-stone-500">{fmt.format(new Date(b.modified))}</span>
+                <span className="text-stone-500">{formatDateTime(b.modified)}</span>
                 <span className="w-16 text-right text-stone-500">{size(b.size)}</span>
                 <a className="text-brand-700 underline" href={`/verwaltung/sicherung/datenbank.sqlite?datei=${encodeURIComponent(b.name)}`}>
                   Herunterladen

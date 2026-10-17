@@ -22,8 +22,8 @@ export const LABEL_FONTS = faces.flatMap(([family, weight, style, slug, variant]
 
 export type LabelFont = (typeof LABEL_FONTS)[number];
 
-export function fontFaceCss(src: (font: LabelFont) => string): string {
-  return LABEL_FONTS.map(
+export function fontFaceCss(src: (font: LabelFont) => string, fonts: readonly LabelFont[] = LABEL_FONTS): string {
+  return fonts.map(
     (f) =>
       `@font-face{font-family:"${f.family}";font-style:${f.style};font-weight:${f.weight};font-display:block;src:url(${src(f)}) format("woff2");unicode-range:${f.unicodeRange};}`,
   ).join("\n");

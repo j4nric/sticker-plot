@@ -1,4 +1,5 @@
 import { listAudit } from "~/models/audit.server";
+import { formatLogTime } from "~/lib/locale";
 import type { Route } from "./+types/audit";
 
 export function meta() {
@@ -8,8 +9,6 @@ export function meta() {
 export function loader() {
   return { entries: listAudit(300) };
 }
-
-const fmt = new Intl.DateTimeFormat("de-DE", { dateStyle: "short", timeStyle: "medium" });
 
 export default function Audit({ loaderData }: Route.ComponentProps) {
   return (
@@ -30,7 +29,7 @@ export default function Audit({ loaderData }: Route.ComponentProps) {
           <tbody className="divide-y divide-stone-100">
             {loaderData.entries.map((e) => (
               <tr key={e.id}>
-                <td className="px-4 py-2 whitespace-nowrap text-stone-600">{fmt.format(new Date(e.createdAt))}</td>
+                <td className="px-4 py-2 whitespace-nowrap text-stone-600">{formatLogTime(e.createdAt)}</td>
                 <td className="px-4 py-2">{e.userName}</td>
                 <td className="px-4 py-2">{e.action}</td>
                 <td className="px-4 py-2">{e.entity}</td>

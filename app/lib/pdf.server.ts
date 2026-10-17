@@ -2,8 +2,8 @@ import { existsSync, readdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { PDFDocument, PrintScaling } from "pdf-lib";
-import { chromium, type Browser } from "playwright-core";
-import { fitLabelText } from "~/label/fit-text";
+import { chromium, type Browser, type BrowserContext } from "playwright-core";
+import { expandLabelRefs, fitLabelText } from "~/label/fit-text";
 import { env } from "./env.server";
 
 /**
@@ -28,28 +28,41 @@ export function resolveChromiumPath(): string | undefined {
   return candidates.find((p) => existsSync(p));
 }
 
-const globalForBrowser = globalThis as unknown as { __teaBrowser?: Promise<Browser> };
+/**
+ * Ein Browser mit einem gemeinsamen Kontext für alle Anfragen; jede Anfrage
+ * bekommt nur eine eigene Seite. Das spart je PDF das Anlegen eines Kontexts.
+ * Netzwerk ist aus: alle Ressourcen sind eingebettet.
+ */
+interface Renderer {
+  browser: Browser;
+  context: BrowserContext;
+}
 
-function getBrowser(): Promise<Browser> {
-  if (!globalForBrowser.__teaBrowser) {
-    const launching = chromium.launch({ executablePath: resolveChromiumPath() }).then((browser) => {
+const globalForBrowser = globalThis as unknown as { __teaRenderer?: Promise<Renderer> };
+
+function getRenderer(): Promise<Renderer> {
+  if (!globalForBrowser.__teaRenderer) {
+    const launching = (async () => {
+      const browser = await chromium.launch({ executablePath: resolveChromiumPath() });
       browser.on("disconnected", () => {
-        if (globalForBrowser.__teaBrowser === launching) globalForBrowser.__teaBrowser = undefined;
+        if (globalForBrowser.__teaRenderer === launching) globalForBrowser.__teaRenderer = undefined;
       });
-      return browser;
-    });
+      const context = await browser.newContext({ offline: true });
+      await context.route("**/*", (route) => route.abort());
+      return { browser, context };
+    })();
     launching.catch(() => {
-      if (globalForBrowser.__teaBrowser === launching) globalForBrowser.__teaBrowser = undefined;
+      if (globalForBrowser.__teaRenderer === launching) globalForBrowser.__teaRenderer = undefined;
     });
-    globalForBrowser.__teaBrowser = launching;
+    globalForBrowser.__teaRenderer = launching;
   }
-  return globalForBrowser.__teaBrowser;
+  return globalForBrowser.__teaRenderer;
 }
 
 export async function closeBrowser() {
-  const pending = globalForBrowser.__teaBrowser;
-  globalForBrowser.__teaBrowser = undefined;
-  if (pending) await (await pending).close().catch(() => {});
+  const pending = globalForBrowser.__teaRenderer;
+  globalForBrowser.__teaRenderer = undefined;
+  if (pending) await (await pending).browser.close().catch(() => {});
 }
 
 export interface PdfResult {
@@ -88,15 +101,14 @@ export interface PdfOptions {
  * Externe Anfragen werden blockiert; alle Ressourcen sind eingebettet.
  */
 export async function htmlToPdf(html: string, opts: PdfOptions = {}): Promise<PdfResult> {
-  const browser = await getBrowser();
-  const context = await browser.newContext({ javaScriptEnabled: true, offline: true });
+  const { context } = await getRenderer();
+  const page = await context.newPage();
   try {
-    const page = await context.newPage();
-    await page.route("**/*", (route) => route.abort());
     await page.setContent(html, { waitUntil: "load" });
     await page.emulateMedia({ media: "print" });
     await page.evaluate(() => document.fonts.ready.then(() => undefined));
-    const overflowing = await page.evaluate(fitLabelText, null);
+    const fitted = await page.evaluate(fitLabelText, null);
+    const expanded = await page.evaluate(expandLabelRefs);
     const raw = await page.pdf({
       width: `${opts.pageWidth ?? 297}mm`,
       height: `${opts.pageHeight ?? 210}mm`,
@@ -104,29 +116,8 @@ export async function htmlToPdf(html: string, opts: PdfOptions = {}): Promise<Pd
       printBackground: true,
       preferCSSPageSize: true,
     });
-    return { pdf: await finalizePdf(raw, opts.title ?? "Etiketten"), overflowing };
+    return { pdf: await finalizePdf(raw, opts.title ?? "Etiketten"), overflowing: expanded ?? fitted };
   } finally {
-    await context.close();
-  }
-}
-
-/** Rendert HTML zu einem PNG (z. B. Vorschaubilder). */
-export async function htmlToPng(html: string, widthMm: number, heightMm: number, scale = 2): Promise<Buffer> {
-  const browser = await getBrowser();
-  const pxPerMm = 96 / 25.4;
-  const context = await browser.newContext({
-    offline: true,
-    viewport: { width: Math.ceil(widthMm * pxPerMm), height: Math.ceil(heightMm * pxPerMm) },
-    deviceScaleFactor: scale,
-  });
-  try {
-    const page = await context.newPage();
-    await page.route("**/*", (route) => route.abort());
-    await page.setContent(html, { waitUntil: "load" });
-    await page.evaluate(() => document.fonts.ready.then(() => undefined));
-    await page.evaluate(fitLabelText, null);
-    return await page.screenshot({ type: "png" });
-  } finally {
-    await context.close();
+    await page.close();
   }
 }

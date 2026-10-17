@@ -1,8 +1,7 @@
 import { useMemo, useState } from "react";
 import { PrintPanel, useDeviceChoice } from "~/components/PrintPanel";
-import type { PrintLayout } from "~/components/TeaEditor";
 import { editorData } from "~/lib/editor.server";
-import { labelsPerSheet, layoutSequence } from "~/label/geometry";
+import { labelsPerSheet, layoutSequence, MAX_PRINT_LABELS, type PrintLayout } from "~/label/geometry";
 import { listTeas } from "~/models/tea.server";
 import type { Route } from "./+types/mixed-print";
 
@@ -27,7 +26,7 @@ export default function MixedPrint({ loaderData }: Route.ComponentProps) {
 
   const setCount = (teaId: number, count: number) =>
     setLines((ls) => {
-      const c = Math.max(0, Math.min(600, Math.floor(count) || 0));
+      const c = Math.max(0, Math.min(MAX_PRINT_LABELS, Math.floor(count) || 0));
       const exists = ls.some((l) => l.teaId === teaId);
       if (c === 0) return ls.filter((l) => l.teaId !== teaId);
       return exists ? ls.map((l) => (l.teaId === teaId ? { ...l, count: c } : l)) : [...ls, { teaId, count: c }];
@@ -61,7 +60,7 @@ export default function MixedPrint({ loaderData }: Route.ComponentProps) {
                   <input
                     type="number"
                     min={0}
-                    max={600}
+                    max={MAX_PRINT_LABELS}
                     value={count}
                     onChange={(e) => setCount(t.id, Number(e.target.value))}
                     className="field-input w-16 px-2 py-1 text-center"
@@ -107,7 +106,7 @@ export default function MixedPrint({ loaderData }: Route.ComponentProps) {
             onLayoutChange={(l) => setLayout({ count: total, start: l.start })}
             colors={firstPage}
             countEditable={false}
-            disabledReason={total ? undefined : "Bitte mindestens ein Etikett wählen."}
+            disabledReason={!total ? "Bitte mindestens ein Etikett wählen." : total > MAX_PRINT_LABELS ? `Höchstens ${MAX_PRINT_LABELS} Etiketten je Druck.` : undefined}
           />
         </div>
       </div>

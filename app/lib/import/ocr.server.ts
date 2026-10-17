@@ -13,6 +13,7 @@ import { dirname, join } from "node:path";
 import { createWorker, PSM, type Worker } from "tesseract.js";
 import { toHex } from "~/label/color";
 import { chooseTitle, matchTeaType, nameFromFileName, snapColor, splitDescription, type ImportResult } from "./interpret";
+import { DEFAULT_TEA_COLOR } from "~/label/tea-types";
 
 const DPI = 300;
 const mmToPx = (mm: number) => Math.round((mm / 25.4) * DPI);
@@ -178,7 +179,7 @@ export async function extractFromPdf(pdf: Buffer, fileName: string): Promise<Ext
   if (descRaw.confidence < 75 && description) warnings.push("Beschreibung unsicher erkannt, bitte prüfen");
 
   const raw = dominantColor(label, OLD_LAYOUT.cup);
-  const color = raw ? snapColor(raw) : "#4f9a3f";
+  const color = raw ? snapColor(raw) : DEFAULT_TEA_COLOR;
   if (!raw) warnings.push("Keine Tassenfarbe gefunden, Standardfarbe gesetzt");
 
   // Vorschau: Etikett auf ca. 360 px Breite verkleinert

@@ -9,9 +9,7 @@ import {
   type Point,
   type SheetGeometry,
 } from "./geometry";
-
-const fmt = (v: number, digits = 2) => v.toLocaleString("de-DE", { minimumFractionDigits: digits, maximumFractionDigits: digits });
-const signed = (v: number) => (v > 0 ? "+" : "") + fmt(v);
+import { formatDateTime, formatNumber, formatSigned } from "~/lib/locale";
 
 /** Fadenkreuz mit 1-mm-Skala. Einheiten im SVG = mm. */
 function Crosshair({ at, name }: { at: Point; name: string }) {
@@ -118,10 +116,10 @@ export function TestSheetPage({
         <div className="tt-text" style={{ left: `${(W - textWidth) / 2}mm`, top: `${Math.min(22, H * 0.1)}mm`, width: `${textWidth}mm` }}>
           <h1>Testbogen Druckerkalibrierung</h1>
           <p className="tt-meta">
-            Drucker: {printerName} · Bogen: {formatName} · erstellt am {createdAt.toLocaleString("de-DE", { dateStyle: "medium", timeStyle: "short" })}
+            Drucker: {printerName} · Bogen: {formatName} · erstellt am {formatDateTime(createdAt)}
             <br />
-            Aktuelle Korrektur: X {signed(calibration.offsetX)} mm, Y {signed(calibration.offsetY)} mm, Skalierung{" "}
-            {fmt(calibration.scaleX * 100)} % / {fmt(calibration.scaleY * 100)} %
+            Aktuelle Korrektur: X {formatSigned(calibration.offsetX)} mm, Y {formatSigned(calibration.offsetY)} mm, Skalierung{" "}
+            {formatNumber(calibration.scaleX * 100)} % / {formatNumber(calibration.scaleY * 100)} %
           </p>
           <ol>
             <li>

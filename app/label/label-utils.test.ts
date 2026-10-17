@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { normalizeEan } from "./codes";
+import { barcodeSvg, eanModules, normalizeEan, qrSvg } from "./codes";
 import { contrastRatio, fillColor, inkColor } from "./color";
 import { DEFAULT_SHEET, labelBox, layoutSequence, nextFreeSlot, referencePoints, validateGeometry } from "./geometry";
 import { resolveMotif } from "./motifs";
 import { normalizeParams } from "./template";
-import { hyphenate, normalizeParagraphs, parseEmphasis, parseMarkup, stripMarkup, titleCase, unsupportedChars } from "./text";
+import { hyphenate, normalizeParagraphs, parseMarkup, titleCase, unsupportedChars } from "./text";
+
+const stripMarkup = (t: string) => parseMarkup(t).map((s) => s.text).join("");
 
 describe("Text", () => {
   it("setzt weiche Trennstriche nach deutschen Regeln, nicht in Adressen", () => {
@@ -15,15 +17,11 @@ describe("Text", () => {
   it("normalisiert Absätze", () => {
     expect(normalizeParagraphs("  Zeile 1 \r\n\r\n\r\n\r\n  Zeile   2 ")).toBe("Zeile 1\n\nZeile 2");
   });
+  const seg = (text: string, bold = false, italic = false, underline = false) => ({ text, bold, italic, underline });
   it("erkennt *Hervorhebungen*", () => {
-    expect(parseEmphasis("Tee, *Mandeln*, Aroma")).toEqual([
-      { text: "Tee, ", bold: false },
-      { text: "Mandeln", bold: true },
-      { text: ", Aroma", bold: false },
-    ]);
+    expect(parseMarkup("Tee, *Mandeln*, Aroma")).toEqual([seg("Tee, "), seg("Mandeln", true), seg(", Aroma")]);
   });
   it("kombiniert fett, kursiv und unterstrichen", () => {
-    const seg = (text: string, bold = false, italic = false, underline = false) => ({ text, bold, italic, underline });
     expect(parseMarkup("Tee, ++Mandeln++, _Sahne_")).toEqual([seg("Tee, "), seg("Mandeln", false, false, true), seg(", "), seg("Sahne", false, true)]);
     expect(parseMarkup("*++Haselnüsse++*")).toEqual([seg("Haselnüsse", true, false, true)]);
     expect(parseMarkup("_*++Soja++*_ und mehr")).toEqual([seg("Soja", true, true, true), seg(" und mehr")]);
@@ -34,6 +32,12 @@ describe("Text", () => {
       expect(stripMarkup(t)).toBe(t);
     }
     expect(stripMarkup("Tee *Mandel*stücke und ein * Stern")).toBe("Tee Mandelstücke und ein * Stern");
+  });
+  it("lässt Fußnotensterne stehen", () => {
+    const t = "Grüner Tee*, Hibiskus* (*aus kontrolliert biologischem Anbau)";
+    expect(parseMarkup(t)).toEqual([seg(t)]);
+    expect(parseMarkup("Minze*, *Mandeln*")).toEqual([seg("Minze*, "), seg("Mandeln", true)]);
+    expect(parseMarkup("Soja*lecithin*")).toEqual([seg("Soja"), seg("lecithin", true)]);
   });
   it("findet nicht druckbare Zeichen", () => {
     expect(unsupportedChars("Čaj ő Łódź – „Tee“ 80 °C ½ € …")).toEqual([]);
@@ -54,6 +58,20 @@ describe("EAN", () => {
     expect(normalizeEan("9638-5074")).toBe("96385074");
     expect(normalizeEan("")).toBe("");
     expect(normalizeEan("abc")).toBeNull();
+  });
+
+  // Muster gegen bwip-js (BWIPP) abgeglichen
+  it("kodiert EAN-13 und EAN-8 nach GS1", () => {
+    expect(eanModules("4006381333931")).toBe("10100011010100111010111101111010001001011001101010100001010000101000010111010010000101100110101");
+    expect(eanModules("96385074")).toBe("1010001011010111101111010110111010101001110111001010001001011100101");
+  });
+
+  it("zeichnet Codes als SVG", () => {
+    const ean = barcodeSvg("4006381333931");
+    expect(ean).toContain("<svg");
+    expect(ean.match(/<text /g)).toHaveLength(13);
+    expect(barcodeSvg("123")).toBe("");
+    expect(qrSvg("https://example.com/tee/5")).toMatch(/viewBox="0 0 25 25"/);
   });
 });
 

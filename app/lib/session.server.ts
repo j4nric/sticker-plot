@@ -1,9 +1,12 @@
+import { createHash } from "node:crypto";
 import { createCookieSessionStorage, data, redirect, type MiddlewareFunction, type RouterContextProvider } from "react-router";
+import type { User } from "~/db/schema";
 import { getUser, toSessionUser, type SessionUser } from "~/models/user.server";
 import { userContext } from "./context";
 import { env } from "./env.server";
 
-type SessionData = { userId: number };
+/** `pw`: Fingerabdruck des Passwort-Hashes, siehe passwordFingerprint */
+type SessionData = { userId: number; pw: string };
 type FlashData = { error: string };
 
 let storage: ReturnType<typeof createCookieSessionStorage<SessionData, FlashData>> | undefined;
@@ -29,13 +32,31 @@ export function getSession(request: Request) {
 export const commitSession: ReturnType<typeof sessionStorage>["commitSession"] = (...args) => sessionStorage().commitSession(...args);
 export const destroySession: ReturnType<typeof sessionStorage>["destroySession"] = (...args) => sessionStorage().destroySession(...args);
 
-/** Benutzer aus dem Cookie; deaktivierte oder gelöschte Konten gelten als abgemeldet. */
+/**
+ * Kurzer Fingerabdruck des Passwort-Hashes. Steht mit im Cookie: Ändert sich
+ * das Passwort oder wird eine Sicherung mit anderen Zugängen eingespielt,
+ * passen bestehende Anmeldungen nicht mehr und gelten als abgemeldet.
+ */
+export function passwordFingerprint(user: Pick<User, "passwordHash">): string {
+  return createHash("sha256").update(user.passwordHash).digest("base64url").slice(0, 16);
+}
+
+/** Cookie für eine frische Anmeldung dieses Benutzers. */
+export async function loginCookie(request: Request, user: User): Promise<string> {
+  const session = await getSession(request);
+  session.set("userId", user.id);
+  session.set("pw", passwordFingerprint(user));
+  return commitSession(session);
+}
+
+/** Benutzer aus dem Cookie; deaktivierte, gelöschte oder geänderte Konten gelten als abgemeldet. */
 export async function getSessionUser(request: Request): Promise<SessionUser | null> {
   const session = await getSession(request);
   const id = session.get("userId");
   if (typeof id !== "number") return null;
   const user = getUser(id);
-  return user && user.active ? toSessionUser(user) : null;
+  if (!user || !user.active || session.get("pw") !== passwordFingerprint(user)) return null;
+  return toSessionUser(user);
 }
 
 /** Nur relative Pfade innerhalb der App zulassen. */
@@ -66,8 +87,3 @@ export function currentUser(context: Readonly<RouterContextProvider>): SessionUs
   return user;
 }
 
-export function requireAdminUser(context: Readonly<RouterContextProvider>): SessionUser {
-  const user = currentUser(context);
-  if (user.role !== "admin") throw data("Nur für Administratoren.", { status: 403 });
-  return user;
-}

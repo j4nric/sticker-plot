@@ -1,5 +1,5 @@
 import { data, Form } from "react-router";
-import { currentUser } from "~/lib/session.server";
+import { currentUser, loginCookie } from "~/lib/session.server";
 import { passwordRule } from "~/lib/validation";
 import { audit } from "~/models/audit.server";
 import { getUser, setPassword } from "~/models/user.server";
@@ -27,7 +27,8 @@ export async function action({ request, context }: Route.ActionArgs) {
   if (next !== repeat) return data({ error: "Die neuen Passwörter stimmen nicht überein.", ok: false }, { status: 400 });
   setPassword(user.id, next);
   audit(user.username, "passwort ändern", "benutzer", user.id);
-  return { error: undefined, ok: true };
+  // Andere Geräte werden abgemeldet, dieses bleibt angemeldet
+  return data({ error: undefined, ok: true }, { headers: { "Set-Cookie": await loginCookie(request, getUser(user.id)!) } });
 }
 
 export default function Account({ loaderData, actionData }: Route.ComponentProps) {

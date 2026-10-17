@@ -1,6 +1,7 @@
 import { and, desc, eq, isNotNull, isNull, like, or, sql } from "drizzle-orm";
 import { db } from "~/db/db.server";
 import { printJobs, teas, type Tea } from "~/db/schema";
+import { deleteUnusedImages } from "./image.server";
 import type { LabelContent } from "~/label/Label";
 import type { TeaInput } from "~/lib/validation";
 
@@ -80,9 +81,10 @@ export function archiveTea(id: number, archived: boolean) {
 
 export function deleteTea(id: number): void {
   db().delete(teas).where(eq(teas.id, id)).run();
+  deleteUnusedImages();
 }
 
-/** Kopie mit allen Feldern, Name mit Zusatz „(Kopie)“. */
+/** Kopie mit allen Feldern, Name mit Zusatz „(Kopie)“. Ein eigenes Bild teilen sich beide. */
 export function duplicateTea(id: number): Tea | undefined {
   const t = getTea(id);
   if (!t) return undefined;

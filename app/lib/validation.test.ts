@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { fileSlug } from "./slug";
-import { parseDecimal, printRequest, readCalibration, readMeasurement, readTeaForm } from "./validation";
+import { parseDecimal } from "./locale";
+import { printRequest, readCalibration, readMeasurement, readTeaForm } from "./validation";
 
 const form = (entries: Record<string, string>) => {
   const f = new FormData();

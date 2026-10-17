@@ -10,6 +10,8 @@ import { listFormats } from "~/models/format.server";
 import { getSettings } from "~/models/settings.server";
 import { allTeas, toLabelContent } from "~/models/tea.server";
 import { deleteTemplate, getTemplate, listTemplates, saveTemplate, setDefaultTemplate } from "~/models/template.server";
+import { formatCompact } from "~/lib/locale";
+import { parseId } from "~/lib/params";
 import type { Route } from "./+types/template-edit";
 
 export function meta() {
@@ -30,7 +32,7 @@ const SAMPLE: LabelContent = {
 
 export function loader({ params }: Route.LoaderArgs) {
   const isNew = params.templateId === "neu";
-  const template = isNew ? null : getTemplate(Number(params.templateId));
+  const template = isNew ? null : getTemplate(parseId(params.templateId));
   if (!isNew && !template) throw data("Vorlage nicht gefunden", { status: 404 });
   const samples = [
     { id: 0, label: "Beispiel: China Sencha", content: SAMPLE },
@@ -50,7 +52,7 @@ export function loader({ params }: Route.LoaderArgs) {
 
 export async function action({ request, params, context }: Route.ActionArgs) {
   const user = currentUser(context);
-  const id = params.templateId === "neu" ? null : Number(params.templateId);
+  const id = params.templateId === "neu" ? null : parseId(params.templateId);
   const form = await request.formData();
   const intent = form.get("intent");
   if (id && intent === "default") {
@@ -77,7 +79,7 @@ function Range({ name, label, value, onChange, step = 0.1 }: { name: keyof typeo
     <div>
       <label className="field-label flex justify-between" htmlFor={name}>
         <span>{label}</span>
-        <span className="font-normal text-stone-600">{value.toLocaleString("de-DE")}</span>
+        <span className="font-normal text-stone-600">{formatCompact(value)}</span>
       </label>
       <input id={name} name={name} type="range" min={min} max={max} step={step} value={value} onChange={(e) => onChange(Number(e.target.value))} className="w-full accent-brand-700" />
     </div>
