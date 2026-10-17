@@ -32,6 +32,7 @@ RUN apt-get update \
   && npx playwright-core install --with-deps --only-shell chromium \
   && rm -rf /var/lib/apt/lists/*
 COPY --from=build /app/build ./build
+COPY server.mjs ./
 COPY drizzle ./drizzle
 COPY scripts ./scripts
 RUN mkdir -p /app/data && chown -R node:node /app/data
@@ -40,4 +41,4 @@ EXPOSE 3000
 VOLUME ["/app/data"]
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s \
   CMD node -e "fetch('http://localhost:'+(process.env.PORT||3000)+'/login').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
-CMD ["./node_modules/.bin/react-router-serve", "./build/server/index.js"]
+CMD ["node", "server.mjs"]
