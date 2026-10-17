@@ -23,7 +23,7 @@
 set -euo pipefail
 
 REPO_URL="${REPO_URL:-https://github.com/j4nric/sticker-plot.git}"
-BRANCH="${BRANCH:-claude/tea-label-sticker-generator-379hjt}"
+BRANCH="${BRANCH:-main}"
 APP_DIR="${APP_DIR:-/opt/sticker-plot}"
 DOMAIN="${1:-${DOMAIN:-}}"
 INTERACTIVE=1
@@ -152,9 +152,9 @@ fi
 # ---------------------------------------------------------------- App holen
 if [[ -d "$APP_DIR/.git" ]]; then
   info "App aktualisieren ($BRANCH)"
-  git -C "$APP_DIR" fetch --quiet origin "$BRANCH"
-  git -C "$APP_DIR" checkout --quiet "$BRANCH"
-  git -C "$APP_DIR" reset --quiet --hard "origin/$BRANCH"
+  git -C "$APP_DIR" fetch --quiet origin "+refs/heads/$BRANCH:refs/remotes/origin/$BRANCH"
+  # -B legt den Branch bei Bedarf an (z. B. beim Wechsel auf main) und setzt ihn auf den Serverstand
+  git -C "$APP_DIR" checkout --quiet --force -B "$BRANCH" "origin/$BRANCH"
 else
   info "App herunterladen nach $APP_DIR"
   git clone --quiet --branch "$BRANCH" "$REPO_URL" "$APP_DIR"

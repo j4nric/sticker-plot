@@ -24,7 +24,7 @@ sobald dort eine Domain registriert ist.
 1. **Per SSH als root auf den Server** einloggen und ausführen:
 
    ```bash
-   curl -fsSL https://raw.githubusercontent.com/j4nric/sticker-plot/claude/tea-label-sticker-generator-379hjt/scripts/install-server.sh -o install-server.sh
+   curl -fsSL https://raw.githubusercontent.com/j4nric/sticker-plot/main/scripts/install-server.sh -o install-server.sh
    bash install-server.sh                              # ohne Domain: sslip.io-Vorschlag
    # oder: bash install-server.sh etiketten.teetreffpunkt.de
    ```

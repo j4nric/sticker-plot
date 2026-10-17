@@ -13,7 +13,7 @@ on:
   workflow_run:
     workflows: [CI]
     types: [completed]
-    branches: [main, claude/tea-label-sticker-generator-379hjt]
+    branches: [main]
 
 jobs:
   deploy:
