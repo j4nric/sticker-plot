@@ -77,11 +77,18 @@ bleibt dieser Webserver in Betrieb und leitet nur die Adresse der Tee-App an sie
    zurückgenommen; die andere Website bleibt unberührt.
 
 Gehört Port 80 einem **Caddy im Docker-Container** einer anderen App, erledigt dasselbe Skript
-das ebenfalls: Es verbindet die Tee-App mit dem Docker-Netzwerk dieses Containers
-(`docker-compose.override.yml`, bleibt bei Updates erhalten), ergänzt in dessen Caddyfile einen
-Block für die Domain (vorher mit Sicherungskopie), prüft die Konfiguration und lädt Caddy neu. Das
-Zertifikat holt Caddy selbst. Überschreibt die andere App ihre Caddyfile bei eigenen Updates, den
-Block dort dauerhaft eintragen:
+das ebenfalls:
+- Es legt das eigene Docker-Netzwerk `tee-proxy` an. Darüber erreicht Caddy die Tee-App unter
+  dem Namen `tee-etiketten`; die Einstellung steht in `docker-compose.override.yml` und bleibt
+  bei Updates erhalten. Die Tee-App kommt bewusst nicht ins Netzwerk der anderen App, denn dort
+  hieße sie wie deren eigene Dienste (z. B. „app“).
+- Es ergänzt in der Caddyfile einen Block für die Domain (mit Sicherungskopie), prüft die
+  Konfiguration und lädt Caddy neu. Das Zertifikat holt Caddy selbst.
+
+Liegt die Caddyfile im Git-Repository der anderen App, ändert das Skript sie nicht, weil deren
+nächstes Deploy den Block wieder entfernen würde. Es gibt den Block nur aus. Er gehört dann
+dauerhaft in jenes Repository, und Caddy muss dort zusätzlich das Netzwerk `tee-proxy` als
+`external` bekommen:
 
 ```
 tee-62-83-23-90.sslip.io {
