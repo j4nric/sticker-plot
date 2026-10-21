@@ -1,9 +1,10 @@
 import { data } from "react-router";
 import { getImage } from "~/models/image.server";
+import { parseId } from "~/lib/params";
 import type { Route } from "./+types/image";
 
 export function loader({ params }: Route.LoaderArgs) {
-  const img = getImage(Number(params.imageId));
+  const img = getImage(parseId(params.imageId));
   if (!img) throw data("Bild nicht gefunden", { status: 404 });
   return new Response(new Uint8Array(img.data), {
     headers: {

@@ -1,36 +1,60 @@
 /**
- * Einfache Sperre gegen das Durchprobieren von Passwörtern:
- * nach 5 Fehlversuchen je Benutzername und Adresse 10 Minuten gesperrt.
+ * Sperre gegen das Durchprobieren von Passwörtern:
+ * - 5 Fehlversuche je Benutzername und Adresse → 10 Minuten gesperrt
+ * - 20 Fehlversuche je Benutzername von beliebigen Adressen → ebenso
+ *
+ * Die Adresse setzt server.mjs aus der von Express ermittelten Client-IP
+ * (trust proxy) in einen eigenen Header; einen vom Client mitgeschickten
+ * Wert überschreibt er. X-Forwarded-For selbst ist frei fälschbar.
  */
-const MAX_FAILURES = 5;
+export const CLIENT_IP_HEADER = "x-tee-client-ip";
+
+const LIMITS = { c: 5, u: 20 } as const;
 const LOCK_MS = 10 * 60 * 1000;
+const MAX_ENTRIES = 5000;
 
-const attempts = new Map<string, { failures: number; lockedUntil: number }>();
+const attempts = new Map<string, { failures: number; lockedUntil: number; last: number }>();
 
-export function clientKey(request: Request, username: string): string {
-  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || request.headers.get("x-real-ip") || "lokal";
-  return `${ip}|${username.trim().toLowerCase()}`;
+/** Schlüssel für Adresse+Name und für den Namen allein. */
+export function loginKeys(request: Request, username: string): string[] {
+  const ip = request.headers.get(CLIENT_IP_HEADER) || "lokal";
+  const name = username.trim().toLowerCase();
+  return [`c|${ip}|${name}`, `u|${name}`];
 }
 
 /** Restliche Sperrzeit in Minuten oder 0. */
-export function lockedMinutes(key: string, now = Date.now()): number {
-  const a = attempts.get(key);
-  if (!a || a.lockedUntil <= now) return 0;
-  return Math.ceil((a.lockedUntil - now) / 60000);
+export function lockedMinutes(keys: string[], now = Date.now()): number {
+  let until = 0;
+  for (const key of keys) until = Math.max(until, attempts.get(key)?.lockedUntil ?? 0);
+  return until > now ? Math.ceil((until - now) / 60000) : 0;
 }
 
-export function registerFailure(key: string, now = Date.now()) {
-  const a = attempts.get(key) ?? { failures: 0, lockedUntil: 0 };
-  if (a.lockedUntil && a.lockedUntil <= now) {
-    a.failures = 0;
-    a.lockedUntil = 0;
+/** Abgelaufene Einträge entfernen; bleibt es zu voll, die ältesten. */
+function prune(now: number) {
+  if (attempts.size <= MAX_ENTRIES) return;
+  for (const [key, a] of attempts) if (a.lockedUntil <= now && now - a.last > LOCK_MS) attempts.delete(key);
+  for (const key of attempts.keys()) {
+    if (attempts.size <= MAX_ENTRIES) break;
+    attempts.delete(key);
   }
-  a.failures++;
-  if (a.failures >= MAX_FAILURES) a.lockedUntil = now + LOCK_MS;
-  attempts.set(key, a);
-  if (attempts.size > 5000) attempts.clear();
 }
 
-export function registerSuccess(key: string) {
-  attempts.delete(key);
+export function registerFailure(keys: string[], now = Date.now()) {
+  for (const key of keys) {
+    const a = attempts.get(key) ?? { failures: 0, lockedUntil: 0, last: now };
+    if ((a.lockedUntil && a.lockedUntil <= now) || now - a.last > LOCK_MS) {
+      a.failures = 0;
+      a.lockedUntil = 0;
+    }
+    a.failures++;
+    a.last = now;
+    if (a.failures >= LIMITS[key[0] as keyof typeof LIMITS]) a.lockedUntil = now + LOCK_MS;
+    attempts.delete(key);
+    attempts.set(key, a);
+  }
+  prune(now);
+}
+
+export function registerSuccess(keys: string[]) {
+  for (const key of keys) attempts.delete(key);
 }

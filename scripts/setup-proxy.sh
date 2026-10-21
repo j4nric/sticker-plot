@@ -90,7 +90,9 @@ APACHE
     ;;
   docker-proxy)
     # Port 80 gehört einem Container. Unterstützt: Caddy im Container (z. B. caddy:2) mit
-    # eingebundener Caddyfile. Die App kommt ins selbe Docker-Netzwerk, Caddy leitet weiter.
+    # eingebundener Caddyfile. App und Caddy teilen sich ein eigenes Netzwerk (tee-proxy),
+    # damit die App nicht im Netzwerk der anderen App hängt (dort hieße sie wie deren
+    # Dienste, z. B. „app“).
     CID="$(docker ps -q --filter publish=80 | head -n1)"
     [[ -n "$CID" ]] || fail "Kein Container mit Port 80 gefunden."
     CNAME="$(docker inspect -f '{{.Name}}' "$CID" | sed 's#^/##')"
@@ -98,9 +100,14 @@ APACHE
     info "Port 80 gehört dem Container $CNAME ($IMAGE)"
     [[ "$IMAGE" =~ (^|/)caddy(:|@|$) ]] || fail "Der Container $CNAME ist kein Caddy. Bitte die Ausgabe von 'docker ps' an den Entwickler schicken."
 
-    NETS="$(docker inspect -f '{{range $k, $v := .NetworkSettings.Networks}}{{$k}}{{"\n"}}{{end}}' "$CID" | grep -v '^$' || true)"
-    NET="$(grep -m1 '_default$' <<<"$NETS" || head -n1 <<<"$NETS")"
-    [[ -n "$NET" ]] || fail "Netzwerk von $CNAME nicht gefunden."
+    NET="${PROXY_NET:-tee-proxy}"
+    docker network inspect "$NET" >/dev/null 2>&1 || { info "Netzwerk $NET anlegen"; docker network create "$NET" >/dev/null; }
+    if ! docker inspect -f '{{range $k, $v := .NetworkSettings.Networks}}{{$k}} {{end}}' "$CID" | grep -qw "$NET"; then
+      info "$CNAME mit $NET verbinden"
+      docker network connect "$NET" "$CID"
+      echo "Hinweis: Wird $CNAME neu erstellt, geht diese Verbindung verloren. Dauerhaft: in dessen"
+      echo "docker-compose.yml das Netzwerk $NET als external eintragen."
+    fi
 
     CADDYFILE="$(docker inspect -f '{{range .Mounts}}{{if eq .Destination "/etc/caddy/Caddyfile"}}{{.Source}}{{end}}{{end}}' "$CID")"
     if [[ -z "$CADDYFILE" ]]; then
@@ -112,7 +119,7 @@ APACHE
 
     info "Tee-App mit dem Netzwerk $NET verbinden"
     cat > "$APP_DIR/docker-compose.override.yml" <<YAML
-# Angelegt von scripts/setup-proxy.sh: verbindet die App mit dem Netzwerk des Caddy-Containers
+# Angelegt von scripts/setup-proxy.sh: verbindet die App über das Netzwerk $NET mit dem Caddy-Container
 # $CNAME, damit dieser sie unter dem Namen tee-etiketten erreicht.
 services:
   app:
@@ -130,6 +137,15 @@ YAML
     BACKUP=""
     if grep -qF "$DOMAIN" "$CADDYFILE"; then
       info "$DOMAIN steht schon in der Caddyfile, keine Änderung"
+    elif git -c safe.directory="*" -C "$(dirname "$CADDYFILE")" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+      # Gehört die Caddyfile zum Git-Repository der anderen App, würde ihr nächstes Deploy
+      # einen hier angehängten Block wieder entfernen. Der Block gehört in jenes Repository.
+      echo
+      echo "Die Caddyfile ($CADDYFILE) gehört zu einem Git-Repository und wird nicht geändert."
+      echo "Diesen Block dort ins Repository aufnehmen und deployen:"
+      echo
+      printf '%s {\n\tencode gzip\n\trequest_body {\n\t\tmax_size 64MB\n\t}\n\treverse_proxy tee-etiketten:3000\n}\n' "$DOMAIN"
+      exit 0
     else
       BACKUP="$CADDYFILE.bak-$(date +%Y%m%d%H%M%S)"
       cp "$CADDYFILE" "$BACKUP"

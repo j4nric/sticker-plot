@@ -15,11 +15,13 @@ import {
   setDefaultPrinter,
   toCalibration,
 } from "~/models/printer.server";
+import { formatNumber, formatSigned } from "~/lib/locale";
+import { parseId } from "~/lib/params";
+import { Notice } from "~/components/Notice";
 import type { Route } from "./+types/printer";
 
 function printerIdFrom(params: { printerId: string }) {
-  const id = Number(params.printerId);
-  const printer = Number.isInteger(id) && id > 0 ? getPrinter(id) : undefined;
+  const printer = getPrinter(parseId(params.printerId));
   if (!printer) throw data("Drucker nicht gefunden", { status: 404 });
   return printer;
 }
@@ -86,9 +88,6 @@ export async function action({ request, params, context }: Route.ActionArgs) {
   }
 }
 
-const fmt = (v: number, d = 2) => v.toLocaleString("de-DE", { minimumFractionDigits: d, maximumFractionDigits: d });
-const signed = (v: number) => (v > 0 ? "+" : "") + fmt(v);
-
 function NumberField({ name, label, defaultValue, error, suffix }: { name: string; label: string; defaultValue?: string; error?: string; suffix: string }) {
   return (
     <div>
@@ -125,7 +124,7 @@ export default function PrinterPage({ loaderData, actionData }: Route.ComponentP
         </h1>
       </div>
 
-      {actionData?.message ? <p className="rounded-lg bg-brand-50 px-4 py-2 text-brand-800">{actionData.message}</p> : null}
+      {actionData?.message ? <Notice>{actionData.message}</Notice> : null}
 
       <div className="grid gap-5 lg:grid-cols-2">
         <section className="card space-y-3">
@@ -154,9 +153,9 @@ export default function PrinterPage({ loaderData, actionData }: Route.ComponentP
           <div className="rounded-lg bg-stone-50 p-3 text-sm text-stone-700">
             <p className="font-semibold">Aktuelle Korrektur</p>
             <p>
-              Verschiebung X {signed(printer.offsetX)} mm, Y {signed(printer.offsetY)} mm
+              Verschiebung X {formatSigned(printer.offsetX)} mm, Y {formatSigned(printer.offsetY)} mm
               <br />
-              Skalierung {fmt(printer.scaleX * 100)} % breit, {fmt(printer.scaleY * 100)} % hoch
+              Skalierung {formatNumber(printer.scaleX * 100)} % breit, {formatNumber(printer.scaleY * 100)} % hoch
             </p>
           </div>
         </section>
@@ -195,10 +194,10 @@ export default function PrinterPage({ loaderData, actionData }: Route.ComponentP
         <summary className="cursor-pointer font-semibold text-stone-800">Erweitert: Werte direkt bearbeiten oder zurücksetzen</summary>
         <Form method="post" className="mt-4 flex flex-wrap items-end gap-4" key={`${printer.offsetX}/${printer.offsetY}/${printer.scaleX}/${printer.scaleY}`}>
           <input type="hidden" name="intent" value="manual" />
-          <NumberField name="offsetX" label="Verschiebung X" suffix="mm" defaultValue={fmt(printer.offsetX)} error={errors.offsetX} />
-          <NumberField name="offsetY" label="Verschiebung Y" suffix="mm" defaultValue={fmt(printer.offsetY)} error={errors.offsetY} />
-          <NumberField name="scaleX" label="Skalierung breit" suffix="%" defaultValue={fmt(printer.scaleX * 100, 3)} error={errors.scaleX} />
-          <NumberField name="scaleY" label="Skalierung hoch" suffix="%" defaultValue={fmt(printer.scaleY * 100, 3)} error={errors.scaleY} />
+          <NumberField name="offsetX" label="Verschiebung X" suffix="mm" defaultValue={formatNumber(printer.offsetX)} error={errors.offsetX} />
+          <NumberField name="offsetY" label="Verschiebung Y" suffix="mm" defaultValue={formatNumber(printer.offsetY)} error={errors.offsetY} />
+          <NumberField name="scaleX" label="Skalierung breit" suffix="%" defaultValue={formatNumber(printer.scaleX * 100, 3)} error={errors.scaleX} />
+          <NumberField name="scaleY" label="Skalierung hoch" suffix="%" defaultValue={formatNumber(printer.scaleY * 100, 3)} error={errors.scaleY} />
           <button className="btn-secondary" disabled={busy}>
             Speichern
           </button>

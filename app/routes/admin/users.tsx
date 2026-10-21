@@ -3,6 +3,8 @@ import { currentUser } from "~/lib/session.server";
 import { passwordRule, usernameRule } from "~/lib/validation";
 import { audit } from "~/models/audit.server";
 import { createUser, deleteUser, findUserByName, getUser, isLastActiveAdmin, listUsers, setPassword, updateUser } from "~/models/user.server";
+import { formatDateTime } from "~/lib/locale";
+import { Notice } from "~/components/Notice";
 import type { Route } from "./+types/users";
 
 export function meta() {
@@ -67,8 +69,6 @@ export async function action({ request, context }: Route.ActionArgs) {
   throw data("Unbekannte Aktion", { status: 400 });
 }
 
-const dateFmt = new Intl.DateTimeFormat("de-DE", { dateStyle: "medium", timeStyle: "short" });
-
 export default function Users({ loaderData, actionData }: Route.ComponentProps) {
   const { users, me } = loaderData;
   const busy = useNavigation().state !== "idle";
@@ -79,7 +79,7 @@ export default function Users({ loaderData, actionData }: Route.ComponentProps) 
         <b>Personal</b> darf Tees anlegen, bearbeiten, archivieren, drucken und Drucker kalibrieren. <b>Administratoren</b> dürfen zusätzlich endgültig löschen und
         die Verwaltung nutzen.
       </p>
-      {actionData?.ok ? <p className="rounded-lg bg-brand-50 px-4 py-2 text-brand-800">{actionData.ok}</p> : null}
+      {actionData?.ok ? <Notice>{actionData.ok}</Notice> : null}
       {actionData?.error && !actionData.userId ? <p className="field-error">{actionData.error}</p> : null}
 
       <ul className="space-y-3">
@@ -89,7 +89,7 @@ export default function Users({ loaderData, actionData }: Route.ComponentProps) 
               <span className="font-display text-lg tracking-wide uppercase">{u.username}</span>
               {u.id === me ? <span className="rounded-full bg-stone-200 px-2 py-0.5 text-xs">du</span> : null}
               {!u.active ? <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs text-red-800">deaktiviert</span> : null}
-              <span className="ml-auto text-xs text-stone-500">{u.lastLoginAt ? `zuletzt angemeldet ${dateFmt.format(new Date(u.lastLoginAt))}` : "noch nie angemeldet"}</span>
+              <span className="ml-auto text-xs text-stone-500">{u.lastLoginAt ? `zuletzt angemeldet ${formatDateTime(u.lastLoginAt)}` : "noch nie angemeldet"}</span>
             </div>
             <div className="flex flex-wrap items-end gap-3">
               <Form method="post" className="flex flex-wrap items-end gap-3">

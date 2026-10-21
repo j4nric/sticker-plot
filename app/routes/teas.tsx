@@ -1,5 +1,6 @@
 import { Form, Link, useSearchParams } from "react-router";
 import { countArchived, listTeas } from "~/models/tea.server";
+import { formatDate } from "~/lib/locale";
 import type { Route } from "./+types/teas";
 
 export function meta() {
@@ -12,8 +13,6 @@ export function loader({ request }: Route.LoaderArgs) {
   const archived = url.searchParams.get("archiv") === "1";
   return { teas: listTeas({ query: q, archived }), q, archived, archivedCount: countArchived() };
 }
-
-const dateFmt = new Intl.DateTimeFormat("de-DE", { dateStyle: "medium" });
 
 export default function Teas({ loaderData }: Route.ComponentProps) {
   const { teas, q, archived, archivedCount } = loaderData;
@@ -77,7 +76,7 @@ export default function Teas({ loaderData }: Route.ComponentProps) {
                   <span className="block truncate font-display text-lg tracking-wide uppercase">{t.name}</span>
                   <span className="block truncate text-sm text-stone-600">{t.teaType || "ohne Teeart"}</span>
                   <span className="block text-xs text-stone-500">
-                    {t.lastPrintedAt ? `zuletzt gedruckt ${dateFmt.format(t.lastPrintedAt)}` : "noch nie gedruckt"}
+                    {t.lastPrintedAt ? `zuletzt gedruckt ${formatDate(t.lastPrintedAt)}` : "noch nie gedruckt"}
                   </span>
                 </span>
                 <span className="text-sm font-semibold text-brand-700">{archived ? "Öffnen ›" : "Drucken ›"}</span>

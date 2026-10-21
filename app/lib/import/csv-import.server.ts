@@ -1,7 +1,8 @@
-import { parseCsv } from "~/lib/csv";
+import { parseCsv, unescapeCsvText } from "~/lib/csv";
 import { readTeaForm } from "~/lib/validation";
 import { createTea, findTeaByName, updateTea } from "~/models/tea.server";
 import { listTemplates } from "~/models/template.server";
+import { DEFAULT_TEA_COLOR } from "~/label/tea-types";
 
 export const CSV_COLUMNS = [
   "name",
@@ -76,7 +77,7 @@ export function importTeasFromCsv(text: string, mode: "create" | "upsert"): CsvI
     const rowNo = i + 2;
     const get = (k: string) => {
       const idx = header.indexOf(k);
-      return idx >= 0 ? (cells[idx] ?? "").trim() : "";
+      return idx >= 0 ? unescapeCsvText((cells[idx] ?? "").trim()) : "";
     };
     const name = get("name");
     if (!name) {
@@ -89,7 +90,7 @@ export function importTeasFromCsv(text: string, mode: "create" | "upsert"): CsvI
       return;
     }
     const form = new FormData();
-    const color = get("farbe") || existing?.color || "#4f9a3f";
+    const color = get("farbe") || existing?.color || DEFAULT_TEA_COLOR;
     const entries: Record<string, string> = {
       name,
       teaType: get("teeart"),

@@ -23,12 +23,28 @@ export function resolveMotif(choice: string, teaType: string, hasImage: boolean)
   return "tasse";
 }
 
+/**
+ * Punktring als fertiger Pfad. Eine Strichelung per stroke-dasharray zerlegt
+ * Chromium im PDF in über tausend Kurvenstücke je Etikett; kurze Striche mit
+ * runden Enden sehen gleich aus und bleiben schlank.
+ */
+const DOT_RING = (() => {
+  const r = 41.5;
+  const dots = 96;
+  let d = "";
+  for (let i = 0; i < dots; i++) {
+    const a = (i / dots) * 2 * Math.PI - Math.PI / 2;
+    d += `M${(60 + r * Math.cos(a)).toFixed(2)} ${(52 + r * Math.sin(a)).toFixed(2)}h.1`;
+  }
+  return d;
+})();
+
 function Backdrop() {
   return (
     <>
       <circle className="tl-c-bg" cx="60" cy="52" r="46" />
       <circle className="tl-c-ring" cx="60" cy="52" r="46" />
-      <circle className="tl-c-dots" cx="60" cy="52" r="41.5" />
+      <path className="tl-c-dots" d={DOT_RING} />
     </>
   );
 }

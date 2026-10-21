@@ -1,18 +1,10 @@
 import { z } from "zod";
 import { normalizeEan } from "~/label/codes";
-import { CALIBRATION_LIMITS, validateGeometry, type SheetGeometry } from "~/label/geometry";
+import { CALIBRATION_LIMITS, GEOMETRY_FIELDS, MAX_PRINT_LABELS, validateGeometry, type SheetGeometry } from "~/label/geometry";
 import { MOTIFS } from "~/label/motifs";
 import { FONTS, normalizeParams, PARAM_LIMITS, VARIANTS, type TemplateParams } from "~/label/template";
 import { normalizeParagraphs, unsupportedChars } from "~/label/text";
-
-/** Akzeptiert deutsche Schreibweise mit Komma. */
-export function parseDecimal(value: FormDataEntryValue | null | undefined): number | null {
-  if (typeof value !== "string") return null;
-  const s = value.trim().replace(/\s/g, "").replace(",", ".").replace("−", "-");
-  if (s === "") return null;
-  const n = Number(s);
-  return Number.isFinite(n) ? n : null;
-}
+import { germanDate, parseDecimal } from "./locale";
 
 const printable = (label: string) => (s: string, ctx: z.RefinementCtx) => {
   const bad = unsupportedChars(s);
@@ -111,22 +103,36 @@ export function readTeaForm(form: FormData) {
   return { ok: false as const, errors, raw };
 }
 
-export const printExtrasInput = z.object({
-  menge: z.string().max(30).optional().default(""),
-  mhd: z.string().max(30).optional().default(""),
-  los: z.string().max(30).optional().default(""),
-});
-
 export const printRequest = z.object({
   drucker: z.coerce.number().int().positive().optional(),
   format: z.coerce.number().int().positive().optional(),
-  anzahl: z.coerce.number().int().min(1).max(600).default(12),
+  anzahl: z.coerce.number().int().min(1).max(MAX_PRINT_LABELS).default(12),
   start: z.coerce.number().int().min(1).max(800).default(1),
   trotzdem: z.string().optional(),
   menge: z.string().max(30).optional(),
   mhd: z.string().max(30).optional(),
   los: z.string().max(30).optional(),
+  /** Kennung je Klick auf „PDF erstellen“, damit erneutes Laden nicht doppelt zählt */
+  auftrag: z.string().regex(/^[\w-]{8,64}$/).optional(),
 });
+
+/** Druckangaben aus der URL der PDF-Routen; null bei ungültigen Angaben. */
+export function readPrintQuery(url: URL) {
+  const query = Object.fromEntries([...url.searchParams].filter(([k, v]) => v !== "" && k !== "items"));
+  const parsed = printRequest.safeParse(query);
+  if (!parsed.success) return null;
+  const q = parsed.data;
+  return {
+    count: q.anzahl,
+    printerId: q.drucker,
+    formatId: q.format,
+    start: q.start,
+    extras: { netWeight: q.menge?.trim(), bestBefore: germanDate(q.mhd), lot: q.los?.trim() },
+    force: q.trotzdem === "1",
+    preview: url.searchParams.get("vorschau") === "1",
+    jobId: q.auftrag,
+  };
+}
 
 /** Sammeldruck: „12:3,15:9“ = Tee 12 dreimal, Tee 15 neunmal. */
 export function parseMixedItems(value: string | null): { teaId: number; count: number }[] | null {
@@ -136,11 +142,11 @@ export function parseMixedItems(value: string | null): { teaId: number; count: n
     const m = part.trim().match(/^(\d+):(\d+)$/);
     if (!m) return null;
     const count = Number(m[2]);
-    if (count < 1 || count > 600) return null;
+    if (count < 1 || count > MAX_PRINT_LABELS) return null;
     items.push({ teaId: Number(m[1]), count });
   }
   const total = items.reduce((s, i) => s + i.count, 0);
-  return items.length && total <= 600 ? items : null;
+  return items.length && total <= MAX_PRINT_LABELS ? items : null;
 }
 
 /**
@@ -180,8 +186,6 @@ export function readCalibration(form: FormData) {
     value: { offsetX: offsetX!, offsetY: offsetY!, scaleX: scaleX! / 100, scaleY: scaleY! / 100 },
   };
 }
-
-export const GEOMETRY_FIELDS = ["pageWidth", "pageHeight", "columns", "rows", "labelWidth", "labelHeight", "originX", "originY", "pitchX", "pitchY"] as const;
 
 export function readGeometry(form: FormData) {
   const name = String(form.get("name") ?? "").trim();

@@ -1,7 +1,9 @@
 import { isRouteErrorResponse, Links, Meta, Outlet, Scripts, ScrollRestoration } from "react-router";
 import type { Route } from "./+types/root";
 import { browserFontCss } from "./label/fonts";
-import labelCss from "./label/label.css?raw";
+// Etikett-Styles als gemeinsame, im Browser zwischengespeicherte CSS-Datei
+// (das PDF bettet dieselbe Datei roh ein, siehe lib/render.server.tsx)
+import "./label/label.css";
 import "./app.css";
 
 export const links: Route.LinksFunction = () => [
@@ -17,8 +19,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <Meta />
         <Links />
-        {/* Gleiche Schriften und Etikett-Styles wie im PDF */}
-        <style dangerouslySetInnerHTML={{ __html: browserFontCss + labelCss }} />
+        {/* Gleiche Schriften wie im PDF */}
+        <style dangerouslySetInnerHTML={{ __html: browserFontCss }} />
       </head>
       <body className="min-h-screen font-sans antialiased">
         {children}

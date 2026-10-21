@@ -1,10 +1,13 @@
 import { useState } from "react";
 import { data, Form, Link, redirect } from "react-router";
-import { DEFAULT_SHEET, labelsPerSheet, slotPosition, validateGeometry, type SheetGeometry } from "~/label/geometry";
+import { DEFAULT_SHEET, GEOMETRY_FIELDS, labelsPerSheet, slotPosition, validateGeometry, type SheetGeometry } from "~/label/geometry";
 import { currentUser } from "~/lib/session.server";
-import { GEOMETRY_FIELDS, parseDecimal, readGeometry } from "~/lib/validation";
+import { parseDecimal } from "~/lib/locale";
+import { readGeometry } from "~/lib/validation";
 import { audit } from "~/models/audit.server";
 import { deleteFormat, getFormat, listFormats, saveFormat, setDefaultFormat } from "~/models/format.server";
+import { parseId } from "~/lib/params";
+import { Notice } from "~/components/Notice";
 import type { Route } from "./+types/format-edit";
 
 export function meta() {
@@ -13,14 +16,14 @@ export function meta() {
 
 export function loader({ params }: Route.LoaderArgs) {
   if (params.formatId === "neu") return { format: { id: null, name: "", isDefault: false, ...DEFAULT_SHEET }, count: listFormats().length };
-  const format = getFormat(Number(params.formatId));
+  const format = getFormat(parseId(params.formatId));
   if (!format) throw data("Format nicht gefunden", { status: 404 });
   return { format, count: listFormats().length };
 }
 
 export async function action({ request, params, context }: Route.ActionArgs) {
   const user = currentUser(context);
-  const id = params.formatId === "neu" ? null : Number(params.formatId);
+  const id = params.formatId === "neu" ? null : parseId(params.formatId);
   const form = await request.formData();
   const intent = form.get("intent");
   if (id && intent === "default") {
@@ -83,7 +86,7 @@ export default function FormatEdit({ loaderData, actionData }: Route.ComponentPr
         ‹ Alle Formate
       </Link>
       <h1 className="font-display text-3xl tracking-wide uppercase">{format.id ? format.name : "Neues Bogenformat"}</h1>
-      {actionData?.saved ? <p className="rounded-lg bg-brand-50 px-4 py-2 text-brand-800">Gespeichert.</p> : null}
+      {actionData?.saved ? <Notice>Gespeichert.</Notice> : null}
       <div className="grid gap-6 lg:grid-cols-2">
         <Form method="post" className="card space-y-4">
           <div>

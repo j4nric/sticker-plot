@@ -1,6 +1,7 @@
 import { Link } from "react-router";
 import { labelsPerSheet } from "~/label/geometry";
 import { listFormats } from "~/models/format.server";
+import { formatCompact } from "~/lib/locale";
 import type { Route } from "./+types/formats";
 
 export function meta() {
@@ -10,8 +11,6 @@ export function meta() {
 export function loader() {
   return { formats: listFormats() };
 }
-
-const n = (v: number) => v.toLocaleString("de-DE", { maximumFractionDigits: 2 });
 
 export default function Formats({ loaderData }: Route.ComponentProps) {
   return (
@@ -34,7 +33,7 @@ export default function Formats({ loaderData }: Route.ComponentProps) {
                 {f.isDefault ? <span className="rounded-full bg-brand-100 px-2 py-0.5 text-xs font-semibold text-brand-800">Standard</span> : null}
               </span>
               <span className="mt-1 block text-sm text-stone-600">
-                Seite {n(f.pageWidth)} × {n(f.pageHeight)} mm · {f.columns} × {f.rows} = {labelsPerSheet(f)} Etiketten à {n(f.labelWidth)} × {n(f.labelHeight)} mm
+                Seite {formatCompact(f.pageWidth)} × {formatCompact(f.pageHeight)} mm · {f.columns} × {f.rows} = {labelsPerSheet(f)} Etiketten à {formatCompact(f.labelWidth)} × {formatCompact(f.labelHeight)} mm
               </span>
             </Link>
           </li>

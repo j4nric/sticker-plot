@@ -1,6 +1,6 @@
 import type { CSSProperties, ReactNode } from "react";
 import { barcodeSvg, normalizeEan, qrSvg } from "./codes";
-import { fillColor, inkColor, isHexColor } from "./color";
+import { fillColor, inkColor, validColor } from "./color";
 import { calibrationStyle, DEFAULT_SHEET, labelBox, NO_CALIBRATION, slotPosition, type Calibration, type SheetGeometry } from "./geometry";
 import { Motif, resolveMotif } from "./motifs";
 import { DEFAULT_TEMPLATE_PARAMS, FONTS, type TemplateParams } from "./template";
@@ -24,9 +24,6 @@ export interface LabelContent {
   productUrl?: string;
   price?: string;
 }
-
-/** @deprecated alter Name */
-export type LabelData = LabelContent;
 
 /** Angaben, die pro Druckauftrag wechseln. */
 export interface PrintExtras {
@@ -135,7 +132,7 @@ export function Label({
   extras?: PrintExtras;
 }) {
   const t = template;
-  const color = isHexColor(data.color) ? data.color : "#777777";
+  const color = validColor(data.color);
   const box = labelBox(size);
   const motif = resolveMotif(data.motif ?? "auto", data.teaType, Boolean(data.imageSrc));
   const showArt = t.artHeight > 0 && motif !== "keins";

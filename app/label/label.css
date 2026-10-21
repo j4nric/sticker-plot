@@ -94,7 +94,7 @@
 .tl-art-img { display: block; max-width: 100%; max-height: var(--art-h); object-fit: contain; }
 .tl-c-bg { fill: var(--tea-light); }
 .tl-c-ring { fill: none; stroke: var(--tea-mid); stroke-width: 0.9; }
-.tl-c-dots { fill: none; stroke: var(--tea-mid); stroke-width: 0.9; stroke-dasharray: 0.1 2.6; stroke-linecap: round; }
+.tl-c-dots { fill: none; stroke: var(--tea-mid); stroke-width: 0.9; stroke-linecap: round; }
 .tl-c-steam { fill: none; stroke: var(--tea-dark); stroke-width: 1.8; stroke-linecap: round; opacity: 0.45; }
 .tl-c-tea { fill: var(--tea); }
 .tl-c-dark { fill: var(--tea-dark); }

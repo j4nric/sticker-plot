@@ -1,20 +1,20 @@
 import { useState } from "react";
 import { data, Form, Link, redirect, useFetcher, useSearchParams } from "react-router";
-import { PrintPanel, useDeviceChoice } from "~/components/PrintPanel";
-import { TeaEditor, type PrintLayout } from "~/components/TeaEditor";
+import { PrintPanel } from "~/components/PrintPanel";
+import { useDeviceChoice } from "~/components/useDeviceChoice";
+import { TeaEditor } from "~/components/TeaEditor";
 import { editorData, rawToForm, teaToForm } from "~/lib/editor.server";
 import { currentUser } from "~/lib/session.server";
 import { readTeaForm } from "~/lib/validation";
-import { labelsPerSheet } from "~/label/geometry";
+import { labelsPerSheet, type PrintLayout } from "~/label/geometry";
 import { audit } from "~/models/audit.server";
 import { archiveTea, deleteTea, duplicateTea, getTea, lastPrintJobs, updateTea } from "~/models/tea.server";
+import { formatDateTime } from "~/lib/locale";
+import { parseId } from "~/lib/params";
+import { Notice } from "~/components/Notice";
 import type { Route } from "./+types/tea-edit";
 
-function teaIdFrom(params: { teaId: string }) {
-  const id = Number(params.teaId);
-  if (!Number.isInteger(id) || id <= 0) throw data("Tee nicht gefunden", { status: 404 });
-  return id;
-}
+const teaIdFrom = (params: { teaId: string }) => parseId(params.teaId);
 
 export function meta({ loaderData }: Route.MetaArgs) {
   return [{ title: `${loaderData?.tea.name ?? "Tee"} · Tee-Etiketten` }];
@@ -79,8 +79,6 @@ export async function action({ request, params, context }: Route.ActionArgs) {
   }
 }
 
-const dateTimeFmt = new Intl.DateTimeFormat("de-DE", { dateStyle: "medium", timeStyle: "short" });
-
 function ImageUpload({ teaId, imageSrc }: { teaId: number; imageSrc: string | null }) {
   const fetcher = useFetcher<{ error?: string }>();
   const busy = fetcher.state !== "idle";
@@ -127,10 +125,10 @@ export default function EditTea({ loaderData, actionData }: Route.ComponentProps
           {archived ? <span className="rounded-full bg-stone-200 px-2 py-0.5 font-sans text-xs tracking-normal text-stone-700 normal-case">archiviert</span> : null}
         </h1>
       </div>
-      {params.get("neu") && !actionData ? <p className="rounded-lg bg-brand-50 px-4 py-2 text-brand-800">Tee angelegt. Jetzt kannst du Etiketten drucken.</p> : null}
-      {params.get("kopie") && !actionData ? <p className="rounded-lg bg-brand-50 px-4 py-2 text-brand-800">Kopie angelegt. Bitte Namen und Texte anpassen.</p> : null}
-      {actionData?.saved ? <p className="rounded-lg bg-brand-50 px-4 py-2 text-brand-800">Änderungen gespeichert.</p> : null}
-      {actionData?.message ? <p className="rounded-lg bg-brand-50 px-4 py-2 text-brand-800">{actionData.message}</p> : null}
+      {params.get("neu") && !actionData ? <Notice>Tee angelegt. Jetzt kannst du Etiketten drucken.</Notice> : null}
+      {params.get("kopie") && !actionData ? <Notice>Kopie angelegt. Bitte Namen und Texte anpassen.</Notice> : null}
+      {actionData?.saved ? <Notice>Änderungen gespeichert.</Notice> : null}
+      {actionData?.message ? <Notice>{actionData.message}</Notice> : null}
 
       {archived ? (
         <div className="card flex flex-wrap items-center gap-3 border-amber-300 bg-amber-50">
@@ -191,7 +189,7 @@ export default function EditTea({ loaderData, actionData }: Route.ComponentProps
                 <ul className="space-y-1 text-sm text-stone-600">
                   {jobs.map((j) => (
                     <li key={j.id}>
-                      {dateTimeFmt.format(new Date(j.createdAt))} · {j.labelCount} Etiketten · {j.printer}
+                      {formatDateTime(j.createdAt)} · {j.labelCount} Etiketten · {j.printer}
                       {j.userName ? ` · ${j.userName}` : ""}
                     </li>
                   ))}

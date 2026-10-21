@@ -4,8 +4,13 @@ export function isHexColor(v: string): boolean {
   return /^#[0-9a-f]{6}$/i.test(v);
 }
 
+/** Ersatzfarbe, solange eine Eingabe keine gültige Farbe ist. */
+export const FALLBACK_COLOR = "#777777";
+
+export const validColor = (v: string) => (isHexColor(v) ? v : FALLBACK_COLOR);
+
 function parse(hex: string): [number, number, number] {
-  const h = isHexColor(hex) ? hex.slice(1) : "777777";
+  const h = validColor(hex).slice(1);
   return [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16)) as [number, number, number];
 }
 

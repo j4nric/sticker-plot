@@ -77,11 +77,18 @@ bleibt dieser Webserver in Betrieb und leitet nur die Adresse der Tee-App an sie
    zurückgenommen; die andere Website bleibt unberührt.
 
 Gehört Port 80 einem **Caddy im Docker-Container** einer anderen App, erledigt dasselbe Skript
-das ebenfalls: Es verbindet die Tee-App mit dem Docker-Netzwerk dieses Containers
-(`docker-compose.override.yml`, bleibt bei Updates erhalten), ergänzt in dessen Caddyfile einen
-Block für die Domain (vorher mit Sicherungskopie), prüft die Konfiguration und lädt Caddy neu. Das
-Zertifikat holt Caddy selbst. Überschreibt die andere App ihre Caddyfile bei eigenen Updates, den
-Block dort dauerhaft eintragen:
+das ebenfalls:
+- Es legt das eigene Docker-Netzwerk `tee-proxy` an. Darüber erreicht Caddy die Tee-App unter
+  dem Namen `tee-etiketten`; die Einstellung steht in `docker-compose.override.yml` und bleibt
+  bei Updates erhalten. Die Tee-App kommt bewusst nicht ins Netzwerk der anderen App, denn dort
+  hieße sie wie deren eigene Dienste (z. B. „app“).
+- Es ergänzt in der Caddyfile einen Block für die Domain (mit Sicherungskopie), prüft die
+  Konfiguration und lädt Caddy neu. Das Zertifikat holt Caddy selbst.
+
+Liegt die Caddyfile im Git-Repository der anderen App, ändert das Skript sie nicht, weil deren
+nächstes Deploy den Block wieder entfernen würde. Es gibt den Block nur aus. Er gehört dann
+dauerhaft in jenes Repository, und Caddy muss dort zusätzlich das Netzwerk `tee-proxy` als
+`external` bekommen:
 
 ```
 tee-62-83-23-90.sslip.io {
@@ -150,6 +157,10 @@ sudo bash /opt/sticker-plot/scripts/install-server.sh <domain>
 Es holt den neuesten Stand, baut den Container neu und startet ihn. Datenbank-Migrationen laufen
 beim Start automatisch, die Daten bleiben erhalten.
 
+**Hinweis zum Update mit der Performance-Überarbeitung (Oktober 2026):** Danach muss sich jeder
+einmal neu anmelden. Messwerte und Änderungen stehen in
+[performance-analyse.md](performance-analyse.md).
+
 ### Automatische Updates per GitHub Actions (optional)
 
 Der Workflow `.github/workflows/deploy.yml` spielt jeden erfolgreich getesteten Stand automatisch
@@ -202,7 +213,10 @@ Die Sicherungen zusätzlich extern ablegen, z. B. regelmäßig in der App herunt
 - **PDF-Erzeugung schlägt fehl:** `docker compose logs app` prüfen. Meist fehlt Speicher; dann
   `shm_size` in `docker-compose.yml` erhöhen oder mehr RAM bereitstellen.
 - **Login klappt nicht:** Läuft die Seite über HTTPS? Für Tests ohne HTTPS `COOKIE_SECURE=false`
-  in `.env` setzen.
+  in `.env` setzen. Nach 5 Fehlversuchen von einem Gerät bzw. 20 Fehlversuchen insgesamt ist
+  der Name 10 Minuten gesperrt.
+- **„Die Datei ist zu groß“ (413):** Grenzen je Upload: Bild 4 MB, PDF-Import 40 MB je Datei,
+  CSV 10 MB, Sicherung 500 MB (der Caddy-Proxy des Installationsskripts lässt bis 64 MB zu).
 - **Container startet nicht:** Fehlt `APP_PASSWORD` oder `SESSION_SECRET`, bricht der Start mit
   einer entsprechenden Meldung ab.
 - **Passwort des Admins vergessen:** Ein anderer Administrator setzt es unter Verwaltung →

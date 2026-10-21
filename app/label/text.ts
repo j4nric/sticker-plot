@@ -12,8 +12,23 @@ export function hyphenate(text: string, minWordLength = 6): string {
   if (!text) return text;
   return text
     .split(/(\s+|https?:\/\/\S+|www\.\S+)/)
-    .map((part) => (/^(\s+|https?:\/\/\S+|www\.\S+)$/.test(part) || part === "" ? part : hyphenateSync(part, { minWordLength })))
+    .map((part) => (/^(\s+|https?:\/\/\S+|www\.\S+)$/.test(part) || part === "" ? part : hyphenateWord(part, minWordLength)))
     .join("");
+}
+
+// Wörter wiederholen sich (Bogen mit vielen gleichen Etiketten, Tippen in der
+// Vorschau, Sammeldruck), daher je Wort zwischenspeichern
+const wordCache = new Map<string, string>();
+
+function hyphenateWord(word: string, minWordLength: number): string {
+  const key = `${minWordLength}|${word}`;
+  let v = wordCache.get(key);
+  if (v === undefined) {
+    v = hyphenateSync(word, { minWordLength });
+    if (wordCache.size >= 5000) wordCache.clear();
+    wordCache.set(key, v);
+  }
+  return v;
 }
 
 /** Zeilenenden vereinheitlichen, Leerzeichen am Zeilenrand und mehr als eine Leerzeile entfernen. */
@@ -43,9 +58,17 @@ export const MARKUP = {
 
 type Style = keyof typeof MARKUP;
 
+const isSpace = (c: string) => /\s/.test(c);
+const isPunct = (c: string) => /[\p{P}\p{S}]/u.test(c);
+
 /**
- * Zerlegt Text mit Formatierungszeichen in Abschnitte. Zeichen ohne passendes
- * Gegenstück (z. B. ein einzelnes Sternchen) bleiben als normaler Text stehen.
+ * Zerlegt Text mit Formatierungszeichen in Abschnitte.
+ *
+ * Wie bei Markdown öffnet ein Zeichen nur, wenn danach Text beginnt, und
+ * schließt nur, wenn davor Text endet (Flanken-Regel aus CommonMark). Ein
+ * Fußnotenstern wie in „Grüner Tee*, Hibiskus*“ bleibt deshalb stehen,
+ * „*Mandel*stücke“ wird dagegen fett. Zeichen ohne passendes Gegenstück
+ * bleiben ebenfalls als normaler Text stehen.
  */
 export function parseMarkup(text: string): MarkupSegment[] {
   // Fundstellen je Format sammeln; „++“ vor „*“ und „_“ prüfen
@@ -57,17 +80,22 @@ export function parseMarkup(text: string): MarkupSegment[] {
     } else if (text[i] === MARKUP.bold) found.bold.push(i);
     else if (text[i] === MARKUP.italic) found.italic.push(i);
   }
-  // nacheinander paaren; leere Paare und Einzelzeichen bleiben Text
   const toggles = new Map<number, Style>();
   for (const style of Object.keys(found) as Style[]) {
-    const pos = found[style];
     const len = MARKUP[style].length;
-    for (let k = 0; k + 1 < pos.length; k += 2) {
-      const open = pos[k]!;
-      const close = pos[k + 1]!;
-      if (close - open - len <= 0 || !text.slice(open + len, close).trim()) continue;
-      toggles.set(open, style);
-      toggles.set(close, style);
+    let open: number | null = null;
+    for (const pos of found[style]) {
+      const before = text[pos - 1] ?? " ";
+      const after = text[pos + len] ?? " ";
+      const canOpen = !isSpace(after) && (!isPunct(after) || isSpace(before) || isPunct(before));
+      const canClose = !isSpace(before) && (!isPunct(before) || isSpace(after) || isPunct(after));
+      if (open !== null && canClose && text.slice(open + len, pos).trim()) {
+        toggles.set(open, style);
+        toggles.set(pos, style);
+        open = null;
+      } else if (canOpen) {
+        open = pos;
+      }
     }
   }
   const segments: MarkupSegment[] = [];
@@ -87,18 +115,6 @@ export function parseMarkup(text: string): MarkupSegment[] {
   }
   flush();
   return segments;
-}
-
-/** Text ohne Formatierungszeichen (z. B. für Längenprüfung oder Suche). */
-export function stripMarkup(text: string): string {
-  return parseMarkup(text)
-    .map((s) => s.text)
-    .join("");
-}
-
-/** @deprecated Kompatibilität: nur fett */
-export function parseEmphasis(text: string): { text: string; bold: boolean }[] {
-  return parseMarkup(text).map(({ text: t, bold }) => ({ text: t, bold }));
 }
 
 /**

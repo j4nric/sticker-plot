@@ -40,6 +40,8 @@ Etiketten werden in dieser Reihenfolge ab dem ersten freien Feld verteilt.
      **U** (unterstrichen) oder **K** (kursiv) drücken. Im Text erscheinen dann Zeichen:
      `*Mandeln*` fett, `++Mandeln++` unterstrichen, `_Mandeln_` kursiv. Kombinationen sind
      möglich, z. B. `*++Soja++*` für fett und unterstrichen.
+   - Ein Sternchen direkt hinter einem Wort ohne Gegenstück, etwa als Fußnote in
+     „Grüner Tee\*, Hibiskus\*“, bleibt als Sternchen stehen.
 3. Optional: Zubereitung (Menge, Temperatur, Ziehzeit), unter **Weitere Angaben** Bio, Preis,
    Strichcode (EAN), Link für einen QR-Code und Haltbarkeit in Monaten.
 4. Unter **Gestaltung** Vorlage und Motiv wählen. Nach dem Anlegen lässt sich ein eigenes Bild

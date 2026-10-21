@@ -10,6 +10,7 @@ Texterkennung übernommen.
 - Installation und Betrieb auf dem Server: [docs/betrieb.md](docs/betrieb.md)
 - Entscheidungen und Umsetzungsstand: [docs/entscheidungen-und-umsetzung.md](docs/entscheidungen-und-umsetzung.md)
 - Technologiewahl: [docs/technologie-recherche.md](docs/technologie-recherche.md)
+- Performance-Analyse mit Messwerten: [docs/performance-analyse.md](docs/performance-analyse.md)
 
 ## Funktionen
 
@@ -34,7 +35,7 @@ Texterkennung übernommen.
 | Datenbank | SQLite mit `better-sqlite3` und Drizzle ORM, Migrationen in `drizzle/`, Bilder in der Datenbank |
 | Texterkennung | `pdfjs-dist` + `@napi-rs/canvas` zum Rastern, `tesseract.js` mit deutschem Modell (offline) |
 | Silbentrennung | `hyphen` (deutsche Trennmuster), identisch in Vorschau und PDF |
-| Codes | `bwip-js` für EAN-13/EAN-8 und QR |
+| Codes | eigener EAN-13/EAN-8-Encoder, `uqr` für QR |
 | Schriften | Oswald, Source Serif 4, Playfair Display (SIL Open Font License) in `public/fonts` |
 | Tests | Vitest: Logik, Datenbank, echte PDF-Erzeugung |
 

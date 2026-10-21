@@ -19,7 +19,3 @@ export function colorForTeaType(type: string): string | undefined {
   const t = type.trim().toLowerCase();
   return TEA_TYPES.find((x) => x.name.toLowerCase() === t)?.color;
 }
-
-export function isHexColor(v: string): boolean {
-  return /^#[0-9a-f]{6}$/i.test(v);
-}

@@ -1,6 +1,6 @@
-import { eq } from "drizzle-orm";
+import { and, eq, isNotNull, notInArray } from "drizzle-orm";
 import { db } from "~/db/db.server";
-import { images } from "~/db/schema";
+import { images, importItems, teas } from "~/db/schema";
 
 export const IMAGE_TYPES = ["image/png", "image/jpeg", "image/webp", "image/svg+xml"] as const;
 export const MAX_IMAGE_BYTES = 3 * 1024 * 1024;
@@ -21,7 +21,10 @@ export function sanitizeSvg(svg: string): string {
     .replace(/<script[\s\S]*?<\/script>/gi, "")
     .replace(/<foreignObject[\s\S]*?<\/foreignObject>/gi, "")
     .replace(/\son\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, "")
-    .replace(/(href|xlink:href)\s*=\s*("|')(?!#|data:image\/)[^"']*\2/gi, "");
+    // Verweise nur innerhalb der Datei oder auf eingebettete Bilder zulassen (mit und ohne Anführungszeichen)
+    .replace(/\s(href|xlink:href)\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, (attr, _name: string, value: string) =>
+      /^["']?\s*(#|data:image\/(png|jpeg|webp|gif);)/i.test(value) ? attr : "",
+    );
 }
 
 export function saveImage(mime: string, data: Buffer): number {
@@ -32,8 +35,18 @@ export function getImage(id: number) {
   return db().select().from(images).where(eq(images.id, id)).get();
 }
 
-export function deleteImage(id: number) {
-  db().delete(images).where(eq(images.id, id)).run();
+/**
+ * Löscht Bilder, auf die weder eine Sorte noch ein Importeintrag verweist.
+ * Sorten können sich ein Bild teilen (Duplizieren), daher wird nie ein
+ * einzelnes Bild direkt gelöscht.
+ */
+export function deleteUnusedImages(): number {
+  const usedByTeas = db().select({ id: teas.imageId }).from(teas).where(isNotNull(teas.imageId));
+  const usedByImports = db().select({ id: importItems.previewImageId }).from(importItems).where(isNotNull(importItems.previewImageId));
+  return db()
+    .delete(images)
+    .where(and(notInArray(images.id, usedByTeas), notInArray(images.id, usedByImports)))
+    .run().changes;
 }
 
 /** Bild als data:-URL für das PDF (keine Netzwerkzugriffe im Renderer). */

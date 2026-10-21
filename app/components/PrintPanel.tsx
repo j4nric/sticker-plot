@@ -1,58 +1,37 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { labelsPerSheet, layoutPages, nextFreeSlot, type SheetGeometry } from "~/label/geometry";
+import { useRevalidator } from "react-router";
+import { labelsPerSheet, layoutPages, MAX_PRINT_LABELS, type PrintLayout } from "~/label/geometry";
 import { PdfDialog } from "./PdfDialog";
 import { SlotPicker } from "./SlotPicker";
-import type { PrintLayout } from "./TeaEditor";
+import type { FormatOption, PrinterOption, useDeviceChoice } from "./useDeviceChoice";
 
-export interface PrinterOption {
-  id: number;
-  name: string;
-  isDefault: boolean;
-  nextSlot: number;
+/** Zufällige Kennung je Druckauftrag (auch ohne HTTPS, wo randomUUID fehlt). */
+function newJobId(): string {
+  const bytes = new Uint8Array(12);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
 }
-export type FormatOption = SheetGeometry & { id: number; name: string; isDefault: boolean };
 
-const store = {
-  get(key: string): string | null {
-    try {
-      return window.localStorage.getItem(key);
-    } catch {
-      return null;
-    }
-  },
-  set(key: string, value: string) {
-    try {
-      window.localStorage.setItem(key, value);
-    } catch {
-      // privater Modus o. Ä.: Merken ist nur Komfort
-    }
-  },
-};
-
-/** Drucker und Format für dieses Gerät merken und wiederherstellen. */
-export function useDeviceChoice(printers: PrinterOption[], formats: FormatOption[]) {
-  const def = (list: { id: number; isDefault: boolean }[]) => (list.find((x) => x.isDefault) ?? list[0])!.id;
-  const [printerId, setPrinterId] = useState(def(printers));
-  const [formatId, setFormatId] = useState(def(formats));
+/**
+ * Nach dem Öffnen des PDFs im neuen Tab das vom Server fortgeschriebene
+ * Startfeld holen: beim Zurückkehren in diesen Tab und sicherheitshalber
+ * nach einigen Sekunden.
+ */
+function useRefreshAfterPrint() {
+  const { revalidate } = useRevalidator();
+  const pending = useRef(false);
   useEffect(() => {
-    const p = Number(store.get("tee.drucker"));
-    if (printers.some((x) => x.id === p)) setPrinterId(p);
-    const f = Number(store.get("tee.format"));
-    if (formats.some((x) => x.id === f)) setFormatId(f);
-  }, [printers, formats]);
-  return {
-    printerId,
-    formatId,
-    printer: printers.find((p) => p.id === printerId) ?? printers[0]!,
-    format: formats.find((f) => f.id === formatId) ?? formats[0]!,
-    choosePrinter(id: number) {
-      setPrinterId(id);
-      store.set("tee.drucker", String(id));
-    },
-    chooseFormat(id: number) {
-      setFormatId(id);
-      store.set("tee.format", String(id));
-    },
+    const onFocus = () => {
+      if (!pending.current) return;
+      pending.current = false;
+      void revalidate();
+    };
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [revalidate]);
+  return () => {
+    pending.current = true;
+    window.setTimeout(() => void revalidate(), 5000);
   };
 }
 
@@ -92,19 +71,22 @@ export function PrintPanel({
   children?: ReactNode;
 }) {
   const formRef = useRef<HTMLFormElement>(null);
+  const jobRef = useRef<HTMLInputElement>(null);
+  const refreshAfterPrint = useRefreshAfterPrint();
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [mhd, setMhd] = useState(shelfLifeMonths ? addMonths(shelfLifeMonths) : "");
   const format = choice.format;
   const perSheet = labelsPerSheet(format);
   const pages = layoutPages(layout.count, layout.start, perSheet);
   const sheets = pages.length;
-  const max = maxCount ?? perSheet * 20;
+  const max = Math.min(maxCount ?? perSheet * 20, MAX_PRINT_LABELS);
 
-  // Startfeld des gewählten Druckers übernehmen (angebrochener Bogen)
+  // Startfeld des gewählten Druckers übernehmen (angebrochener Bogen); nach
+  // einem Druck kommt der fortgeschriebene Wert mit den neu geladenen Daten
   useEffect(() => {
     onLayoutChange({ count: layout.count, start: Math.min(choice.printer.nextSlot, perSheet) });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [choice.printerId, perSheet]);
+  }, [choice.printerId, choice.printer.nextSlot, perSheet]);
 
   const buildUrl = () => {
     const params = new URLSearchParams();
@@ -124,10 +106,11 @@ export function PrintPanel({
       className="card space-y-4"
       id="drucken"
       onSubmit={() => {
-        // Nach dem Druck liegt der angebrochene Bogen im Drucker: Startfeld fortschreiben
-        setTimeout(() => onLayoutChange({ count: layout.count, start: nextFreeSlot(layout.start, layout.count, perSheet) }), 0);
+        if (jobRef.current) jobRef.current.value = newJobId();
+        refreshAfterPrint();
       }}
     >
+      <input ref={jobRef} type="hidden" name="auftrag" defaultValue="" />
       <h2 className="font-display text-lg tracking-wide uppercase">Drucken</h2>
       {Object.entries(hiddenFields ?? {}).map(([k, v]) => (
         <input key={k} type="hidden" name={k} value={v} />

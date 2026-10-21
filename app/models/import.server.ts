@@ -2,6 +2,7 @@ import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "~/db/db.server";
 import { importItems, type ImportItem } from "~/db/schema";
 import type { ImportResult } from "~/lib/import/interpret";
+import { deleteUnusedImages } from "./image.server";
 
 export function addImportItem(fileName: string, source: Buffer, userName: string): number {
   return db().insert(importItems).values({ fileName, source, userName, status: "queued" }).returning({ id: importItems.id }).get().id;
@@ -57,6 +58,7 @@ export function importCounts() {
 /** Erledigte Einträge (übernommen/verworfen) aufräumen. */
 export function clearFinished() {
   db().delete(importItems).where(inArray(importItems.status, ["imported", "skipped"])).run();
+  deleteUnusedImages();
 }
 
 export function retryItem(id: number) {

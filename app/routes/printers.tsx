@@ -2,6 +2,7 @@ import { data, Form, Link, redirect } from "react-router";
 import { currentUser } from "~/lib/session.server";
 import { audit } from "~/models/audit.server";
 import { createPrinter, listPrinters } from "~/models/printer.server";
+import { formatNumber, formatSigned } from "~/lib/locale";
 import type { Route } from "./+types/printers";
 
 export function meta() {
@@ -21,9 +22,6 @@ export async function action({ request, context }: Route.ActionArgs) {
   audit(user.username, "anlegen", "drucker", printer.id, name);
   throw redirect(`/drucker/${printer.id}`);
 }
-
-const fmt = (v: number) => v.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const signed = (v: number) => (v > 0 ? "+" : "") + fmt(v);
 
 export default function Printers({ loaderData, actionData }: Route.ComponentProps) {
   return (
@@ -45,7 +43,7 @@ export default function Printers({ loaderData, actionData }: Route.ComponentProp
                 </span>
                 <span className="mt-1 block text-sm text-stone-600">
                   {calibrated
-                    ? `X ${signed(p.offsetX)} mm · Y ${signed(p.offsetY)} mm · ${fmt(p.scaleX * 100)} % / ${fmt(p.scaleY * 100)} %`
+                    ? `X ${formatSigned(p.offsetX)} mm · Y ${formatSigned(p.offsetY)} mm · ${formatNumber(p.scaleX * 100)} % / ${formatNumber(p.scaleY * 100)} %`
                     : "noch nicht kalibriert"}
                 </span>
                 <span className="mt-2 block text-sm font-semibold text-brand-700">Kalibrieren ›</span>

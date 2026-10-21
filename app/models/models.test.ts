@@ -70,6 +70,21 @@ describe("Startdaten und neue Funktionen", () => {
     expect(countArchived()).toBe(1);
   });
 
+  it("behält ein geteiltes Bild, bis keine Sorte es mehr nutzt", async () => {
+    const { createTea, duplicateTea, setTeaImage, deleteTea } = await import("./tea.server");
+    const { saveImage, getImage, deleteUnusedImages } = await import("./image.server");
+    const t = createTea({ name: "Bildtee" });
+    const img = saveImage("image/png", Buffer.from("x"));
+    setTeaImage(t.id, img);
+    const copy = duplicateTea(t.id)!;
+    expect(copy.imageId).toBe(img);
+    setTeaImage(copy.id, null);
+    deleteUnusedImages();
+    expect(getImage(img)).toBeDefined();
+    deleteTea(t.id);
+    expect(getImage(img)).toBeUndefined();
+  });
+
   it("speichert eine angepasste Fußzeile", async () => {
     const { getSettings, saveSettings } = await import("./settings.server");
     const s = getSettings();
