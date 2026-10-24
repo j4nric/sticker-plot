@@ -73,6 +73,60 @@ function MarginScale({ format }: { format: SheetGeometry }) {
   );
 }
 
+/** Länge der Kontrolllinien in mm (kleinere Bögen: 50 mm). */
+export function controlLineLength(size: number): number {
+  return size >= 150 ? 100 : 50;
+}
+
+/**
+ * Kontrolllinien mit cm-Teilung, waagerecht und senkrecht, bezogen auf das
+ * Papier (ohne Druckerkorrektur). Mit dem Lineal nachgemessen zeigen sie,
+ * ob Drucker oder App die Seite verkleinert haben, z. B. „An Seite anpassen“.
+ */
+function ControlLines({ format }: { format: SheetGeometry }) {
+  const W = format.pageWidth;
+  const H = format.pageHeight;
+  const lenX = controlLineLength(W);
+  const lenY = controlLineLength(H);
+  const x0 = (W - lenX) / 2;
+  const y = H - 22;
+  const x = W - 28;
+  const y0 = (H - lenY) / 2;
+  const ticks: ReactNode[] = [];
+  for (let i = 0; i <= lenX; i += 10) {
+    const len = i === 0 || i === lenX ? 3 : 1.5;
+    ticks.push(<line key={`x${i}`} x1={x0 + i} y1={y - len} x2={x0 + i} y2={y + len} />);
+  }
+  for (let i = 0; i <= lenY; i += 10) {
+    const len = i === 0 || i === lenY ? 3 : 1.5;
+    ticks.push(<line key={`y${i}`} x1={x - len} y1={y0 + i} x2={x + len} y2={y0 + i} />);
+  }
+  const label = (cm: number) => `Kontrolle: genau ${formatNumber(cm, 1)} cm`;
+  return (
+    <g stroke="#000" strokeWidth="0.3">
+      <line x1={x0} y1={y} x2={x0 + lenX} y2={y} />
+      <line x1={x} y1={y0} x2={x} y2={y0 + lenY} />
+      {ticks}
+      <text x={W / 2} y={y + 6} fontSize="2.6" textAnchor="middle" fill="#000" stroke="none" fontFamily="Oswald, sans-serif" fontWeight="600">
+        {label(lenX / 10)}
+      </text>
+      <text
+        x={x + 5}
+        y={H / 2}
+        fontSize="2.6"
+        textAnchor="middle"
+        fill="#000"
+        stroke="none"
+        fontFamily="Oswald, sans-serif"
+        fontWeight="600"
+        transform={`rotate(90 ${x + 5} ${H / 2})`}
+      >
+        {label(lenY / 10)}
+      </text>
+    </g>
+  );
+}
+
 export function TestSheetPage({
   calibration,
   printerName,
@@ -96,6 +150,7 @@ export function TestSheetPage({
       {/* Randmarken beziehen sich auf das Papier, nicht auf den kalibrierten Bogen */}
       <svg className="tt-svg" style={svgStyle} viewBox={`0 0 ${W} ${H}`}>
         <MarginScale format={format} />
+        <ControlLines format={format} />
       </svg>
       <div className="tl-sheet" style={calibrationStyle(calibration, format)}>
         {Array.from({ length: labelsPerSheet(format) }, (_, i) => {
@@ -138,6 +193,11 @@ export function TestSheetPage({
             </li>
             <li>Die vier Ablesewerte in der Web-Oberfläche beim Drucker eintragen und erneut testen, bis beide Kreuze auf den Ecken sitzen.</li>
           </ol>
+          <p className="tt-meta">
+            <b>Kontrolllinien</b> (unten und rechts) mit dem Lineal nachmessen. Sind sie genau {formatNumber(controlLineLength(W) / 10, 1)} cm
+            bzw. {formatNumber(controlLineLength(H) / 10, 1)} cm lang, wurde in 100 % gedruckt. Sind sie kürzer, hat Drucker oder App die Seite
+            verkleinert (z. B. 9,6 cm = 96 %); dann jedes Mal genau so drucken wie beim Kalibrieren.
+          </p>
           <p className="tt-meta">
             Randmarken an allen vier Papierkanten: Die Zahl am ersten vollständig gedruckten Strich ist der unbedruckbare Rand des
             Druckers in mm.

@@ -25,6 +25,11 @@ const pageCount = async (pdf: Buffer) => (await PDFDocument.load(pdf)).getPageCo
 const pageSize = async (pdf: Buffer) => (await PDFDocument.load(pdf)).getPage(0).getSize();
 
 describe("PDF-HTML", () => {
+  it("druckt Kontrolllinien zum Nachmessen auf den Testbogen", () => {
+    const html = testSheetHtml({ calibration: NO_CALIBRATION, printerName: "Test" });
+    expect(html).toContain("Kontrolle: genau 10,0 cm");
+  });
+
   it("rendert jede Sorte nur einmal und verweist aus den Feldern darauf", () => {
     const other: SheetItem = { content: { ...tea, name: "Assam" }, template: DEFAULT_TEMPLATE_PARAMS };
     const html = labelSheetsHtml({ items: [...many(10), ...many(5, other)], shop, calibration: NO_CALIBRATION, start: 1 });

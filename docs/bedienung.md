@@ -75,6 +75,14 @@ welcher Korrektur und welchem Bogenformat er gedruckt wurde. Dieselben Werte nie
 eintragen, sonst verdoppelt sich die Korrektur. Die App verhindert das, solange die Seite offen
 ist. Immer in **tatsächlicher Größe (100 %)** drucken, nie mit „An Seite anpassen“.
 
+Unten und rechts auf dem Testbogen stehen **Kontrolllinien** von genau 10 cm. Mit dem Lineal
+nachmessen: 10,0 cm heißt, es wurde in 100 % gedruckt; kürzer (z. B. 9,6 cm) heißt, Drucker oder
+App haben die Seite verkleinert. Das passiert vor allem beim Drucken vom iPhone oder iPad, wo es
+keine Einstellung „Tatsächliche Größe“ gibt. Die Kalibrierung gleicht das aus, solange immer auf
+dieselbe Weise gedruckt wird. Ist die Linie mal 10,0 cm und mal kürzer, druckt das Gerät nicht
+gleichbleibend; dann zuerst klären, woran das liegt, sonst sitzen die Etiketten mal richtig und
+mal nicht.
+
 Die Randmarken an den Papierkanten zeigen, ab wie vielen Millimetern der Drucker überhaupt druckt.
 
 ## Für Administratoren: Verwaltung
