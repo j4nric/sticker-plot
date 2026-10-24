@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { data, Form, Link, redirect, useNavigation } from "react-router";
 import { CrosshairHelp } from "~/components/CrosshairHelp";
-import { applyMeasurement, NO_CALIBRATION, referencePoints } from "~/label/geometry";
+import { applyMeasurement, NO_CALIBRATION, referencePoints, type Calibration } from "~/label/geometry";
 import { currentUser } from "~/lib/session.server";
 import { audit } from "~/models/audit.server";
 import { getFormat, listFormats } from "~/models/format.server";
@@ -18,6 +18,7 @@ import {
 import { formatNumber, formatSigned } from "~/lib/locale";
 import { parseId } from "~/lib/params";
 import { Notice } from "~/components/Notice";
+import { useRememberedFormat } from "~/components/useDeviceChoice";
 import type { Route } from "./+types/printer";
 
 function printerIdFrom(params: { printerId: string }) {
@@ -37,7 +38,10 @@ export function loader({ params, context }: Route.LoaderArgs) {
   return { printer, printerCount: listPrinters().length, formats, isAdmin: user.role === "admin" };
 }
 
-type ActionResult = { message?: string; errors?: Record<string, string> };
+type ActionResult = { message?: string; errors?: Record<string, string>; calibrated?: boolean };
+
+/** Kennung einer Korrektur; Ablesewerte gelten nur für den Stand, mit dem der Testbogen gedruckt wurde. */
+const calibrationKey = (c: Calibration) => [c.offsetX, c.offsetY, c.scaleX, c.scaleY].join("/");
 
 export async function action({ request, params, context }: Route.ActionArgs) {
   const user = currentUser(context);
@@ -48,13 +52,22 @@ export async function action({ request, params, context }: Route.ActionArgs) {
 
   switch (intent) {
     case "measure": {
+      // Ablesewerte beziehen sich auf die Korrektur, mit der der Testbogen gedruckt wurde. Hat sie
+      // sich seit dem Laden der Seite geändert (zweiter Tab, doppelt eingetragen), nicht noch
+      // einmal verrechnen: Das würde die Korrektur verdoppeln.
+      if (form.get("basis") !== calibrationKey(toCalibration(printer))) {
+        return data<ActionResult>(
+          { errors: { form: "Die Korrektur wurde inzwischen schon geändert. Die Werte gehören zu einem älteren Testbogen. Bitte einen neuen Testbogen drucken und dessen Werte eintragen." } },
+          { status: 409 },
+        );
+      }
       const m = readMeasurement(form);
       if (!m.ok) return data<ActionResult>({ errors: m.errors }, { status: 400 });
       const format = getFormat(Number(form.get("format"))) ?? listFormats()[0]!;
       const next = applyMeasurement(toCalibration(printer), m.values, format);
       setCalibration(printer.id, next);
       log("kalibrieren", `X ${next.offsetX} mm, Y ${next.offsetY} mm, ${(next.scaleX * 100).toFixed(2)} % / ${(next.scaleY * 100).toFixed(2)} %`);
-      return { message: "Korrektur übernommen. Zur Kontrolle einen neuen Testbogen drucken." } as ActionResult;
+      return { message: "Korrektur übernommen.", calibrated: true } as ActionResult;
     }
     case "manual": {
       const c = readCalibration(form);
@@ -105,8 +118,11 @@ function NumberField({ name, label, defaultValue, error, suffix }: { name: strin
 
 export default function PrinterPage({ loaderData, actionData }: Route.ComponentProps) {
   const { printer, printerCount, formats, isAdmin } = loaderData;
-  const [formatId, setFormatId] = useState(formats[0]!.id);
-  const format = formats.find((f) => f.id === formatId) ?? formats[0]!;
+  const { formatId, format, chooseFormat } = useRememberedFormat(formats);
+  // Nach dem Speichern die Eingabe ausblenden, damit dieselben Werte nicht ein zweites Mal verrechnet werden
+  const [reopenedFor, setReopenedFor] = useState<ActionResult | undefined>();
+  const awaitingTestSheet = Boolean(actionData?.calibrated) && reopenedFor !== actionData;
+  const testSheetUrl = `/drucker/${printer.id}/testbogen.pdf?format=${format.id}`;
   const navigation = useNavigation();
   const busy = navigation.state !== "idle";
   const errors = actionData?.errors ?? {};
@@ -138,7 +154,7 @@ export default function PrinterPage({ loaderData, actionData }: Route.ComponentP
               <label className="field-label" htmlFor="format-select">
                 Bogenformat
               </label>
-              <select id="format-select" value={formatId} onChange={(e) => setFormatId(Number(e.target.value))} className="field-input">
+              <select id="format-select" value={formatId} onChange={(e) => chooseFormat(Number(e.target.value))} className="field-input">
                 {formats.map((f) => (
                   <option key={f.id} value={f.id}>
                     {f.name}
@@ -147,7 +163,7 @@ export default function PrinterPage({ loaderData, actionData }: Route.ComponentP
               </select>
             </div>
           ) : null}
-          <a href={`/drucker/${printer.id}/testbogen.pdf?format=${format.id}`} target="_blank" rel="noreferrer" className="btn-primary">
+          <a href={testSheetUrl} target="_blank" rel="noreferrer" className="btn-primary">
             Testbogen als PDF öffnen
           </a>
           <div className="rounded-lg bg-stone-50 p-3 text-sm text-stone-700">
@@ -169,24 +185,51 @@ export default function PrinterPage({ loaderData, actionData }: Route.ComponentP
             </p>
             <CrosshairHelp />
           </div>
-          {/* key: nach jeder Änderung leeren, damit Werte nicht doppelt angewendet werden */}
-          <Form method="post" className="space-y-4" key={`m-${printer.offsetX}/${printer.offsetY}/${printer.scaleX}/${printer.scaleY}`}>
-            <input type="hidden" name="intent" value="measure" />
-            <input type="hidden" name="format" value={format.id} />
-            <fieldset className="grid grid-cols-2 gap-4">
-              <legend className="mb-2 text-sm font-semibold text-stone-800">Kreuz A (Etikett {format.ref.aIndex + 1})</legend>
-              <NumberField name="ax" label="X waagerecht" suffix="mm" error={errors.ax} />
-              <NumberField name="ay" label="Y senkrecht" suffix="mm" error={errors.ay} />
-            </fieldset>
-            <fieldset className="grid grid-cols-2 gap-4">
-              <legend className="mb-2 text-sm font-semibold text-stone-800">Kreuz B (Etikett {format.ref.bIndex + 1})</legend>
-              <NumberField name="bx" label="X waagerecht" suffix="mm" error={errors.bx} />
-              <NumberField name="by" label="Y senkrecht" suffix="mm" error={errors.by} />
-            </fieldset>
-            <button className="btn-primary" disabled={busy}>
-              {busy && intent === "measure" ? "Rechnet …" : "Korrektur berechnen und speichern"}
-            </button>
-          </Form>
+          {awaitingTestSheet ? (
+            <div className="space-y-3 rounded-lg border border-brand-100 bg-brand-50 p-4 text-sm text-brand-800">
+              <p>
+                <b>Die Ablesewerte sind verrechnet.</b> Dieselben Werte nicht noch einmal eintragen, sonst verdoppelt sich die
+                Korrektur.
+              </p>
+              <p>Jetzt einen neuen Testbogen drucken. Sitzen beide Kreuze auf den Ecken, ist der Drucker fertig.</p>
+              <div className="flex flex-wrap gap-3">
+                <a href={testSheetUrl} target="_blank" rel="noreferrer" className="btn-primary">
+                  Neuen Testbogen öffnen
+                </a>
+                <button type="button" className="btn-secondary" onClick={() => setReopenedFor(actionData)}>
+                  Werte vom neuen Testbogen eintragen
+                </button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <p className="rounded-lg bg-stone-50 p-3 text-sm text-stone-700">
+                Die Werte müssen von einem Testbogen stammen, auf dem die <b>aktuelle Korrektur</b> steht (X {formatSigned(printer.offsetX)} mm, Y{" "}
+                {formatSigned(printer.offsetY)} mm, {formatNumber(printer.scaleX * 100)} % / {formatNumber(printer.scaleY * 100)} %) und das
+                Bogenformat <b>{format.name}</b>. Steht auf dem Bogen etwas anderes, zuerst einen neuen Testbogen drucken.
+              </p>
+              {/* key: nach jeder Änderung leeren, damit Werte nicht doppelt angewendet werden */}
+              <Form method="post" className="space-y-4" key={`m-${calibrationKey(printer)}`}>
+                <input type="hidden" name="intent" value="measure" />
+                <input type="hidden" name="format" value={format.id} />
+                <input type="hidden" name="basis" value={calibrationKey(printer)} />
+                <fieldset className="grid grid-cols-2 gap-4">
+                  <legend className="mb-2 text-sm font-semibold text-stone-800">Kreuz A (Etikett {format.ref.aIndex + 1})</legend>
+                  <NumberField name="ax" label="X waagerecht" suffix="mm" error={errors.ax} />
+                  <NumberField name="ay" label="Y senkrecht" suffix="mm" error={errors.ay} />
+                </fieldset>
+                <fieldset className="grid grid-cols-2 gap-4">
+                  <legend className="mb-2 text-sm font-semibold text-stone-800">Kreuz B (Etikett {format.ref.bIndex + 1})</legend>
+                  <NumberField name="bx" label="X waagerecht" suffix="mm" error={errors.bx} />
+                  <NumberField name="by" label="Y senkrecht" suffix="mm" error={errors.by} />
+                </fieldset>
+                {errors.form ? <p className="field-error">{errors.form}</p> : null}
+                <button className="btn-primary" disabled={busy}>
+                  {busy && intent === "measure" ? "Rechnet …" : "Korrektur berechnen und speichern"}
+                </button>
+              </Form>
+            </>
+          )}
         </section>
       </div>
 
