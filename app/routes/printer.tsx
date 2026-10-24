@@ -149,6 +149,10 @@ export default function PrinterPage({ loaderData, actionData }: Route.ComponentP
             Den Testbogen auf einen <b>leeren Etikettenbogen</b> drucken, in tatsächlicher Größe (100 %). Der Bogen enthält die aktuelle
             Korrektur, so lässt sich jede Einstellung direkt überprüfen.
           </p>
+          <p className="text-sm text-stone-600">
+            Unten und rechts sind <b>Kontrolllinien</b> von genau 10 cm. Mit dem Lineal nachmessen: Sind sie kürzer, hat Drucker oder App
+            die Seite verkleinert (z. B. vom iPad aus). Dann immer auf dieselbe Weise drucken wie beim Kalibrieren.
+          </p>
           {formats.length > 1 ? (
             <div>
               <label className="field-label" htmlFor="format-select">
