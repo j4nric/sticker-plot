@@ -70,6 +70,11 @@ Jeder Drucker zieht das Papier etwas anders ein. Mit dem Testbogen wird das ausg
 5. Einen neuen Testbogen drucken. Sitzen beide Kreuze auf den Ecken, ist der Drucker fertig.
    Sonst die neuen Ablesewerte eintragen; sie werden zur bisherigen Korrektur dazugerechnet.
 
+Wichtig: Jeder Satz Ablesewerte gehört zu genau einem Testbogen. Oben auf dem Bogen steht, mit
+welcher Korrektur und welchem Bogenformat er gedruckt wurde. Dieselben Werte nie zweimal
+eintragen, sonst verdoppelt sich die Korrektur. Die App verhindert das, solange die Seite offen
+ist. Immer in **tatsächlicher Größe (100 %)** drucken, nie mit „An Seite anpassen“.
+
 Die Randmarken an den Papierkanten zeigen, ab wie vielen Millimetern der Drucker überhaupt druckt.
 
 ## Für Administratoren: Verwaltung

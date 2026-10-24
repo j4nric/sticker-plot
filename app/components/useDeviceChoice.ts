@@ -26,29 +26,44 @@ const store = {
   },
 };
 
-/** Drucker und Format für dieses Gerät merken und wiederherstellen. */
-export function useDeviceChoice(printers: PrinterOption[], formats: FormatOption[]) {
-  const def = (list: { id: number; isDefault: boolean }[]) => (list.find((x) => x.isDefault) ?? list[0])!.id;
-  const [printerId, setPrinterId] = useState(def(printers));
-  const [formatId, setFormatId] = useState(def(formats));
+const defaultId = (list: { id: number; isDefault: boolean }[]) => (list.find((x) => x.isDefault) ?? list[0])!.id;
+
+/**
+ * Bogenformat für dieses Gerät merken. Etikettendruck, Testbogen und
+ * Kalibrierung nutzen dieselbe Auswahl, damit nicht versehentlich mit einem
+ * anderen Format gemessen als gedruckt wird.
+ */
+export function useRememberedFormat<T extends { id: number; isDefault: boolean }>(formats: T[]) {
+  const [formatId, setFormatId] = useState(defaultId(formats));
   useEffect(() => {
-    const p = Number(store.get("tee.drucker"));
-    if (printers.some((x) => x.id === p)) setPrinterId(p);
     const f = Number(store.get("tee.format"));
     if (formats.some((x) => x.id === f)) setFormatId(f);
-  }, [printers, formats]);
+  }, [formats]);
   return {
-    printerId,
     formatId,
-    printer: printers.find((p) => p.id === printerId) ?? printers[0]!,
     format: formats.find((f) => f.id === formatId) ?? formats[0]!,
-    choosePrinter(id: number) {
-      setPrinterId(id);
-      store.set("tee.drucker", String(id));
-    },
     chooseFormat(id: number) {
       setFormatId(id);
       store.set("tee.format", String(id));
+    },
+  };
+}
+
+/** Drucker und Format für dieses Gerät merken und wiederherstellen. */
+export function useDeviceChoice(printers: PrinterOption[], formats: FormatOption[]) {
+  const [printerId, setPrinterId] = useState(defaultId(printers));
+  const formatChoice = useRememberedFormat(formats);
+  useEffect(() => {
+    const p = Number(store.get("tee.drucker"));
+    if (printers.some((x) => x.id === p)) setPrinterId(p);
+  }, [printers]);
+  return {
+    ...formatChoice,
+    printerId,
+    printer: printers.find((p) => p.id === printerId) ?? printers[0]!,
+    choosePrinter(id: number) {
+      setPrinterId(id);
+      store.set("tee.drucker", String(id));
     },
   };
 }
