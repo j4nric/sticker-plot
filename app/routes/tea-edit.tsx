@@ -34,7 +34,7 @@ export function loader({ params, context }: Route.LoaderArgs) {
     printer: j.printerId ? (printerNames.get(j.printerId) ?? "gelöschter Drucker") : "gelöschter Drucker",
   }));
   return {
-    tea: { id: tea.id, name: tea.name, archivedAt: tea.archivedAt, updatedAt: tea.updatedAt, shelfLifeMonths: tea.shelfLifeMonths, color: tea.color },
+    tea: { id: tea.id, name: tea.name, archivedAt: tea.archivedAt, updatedAt: tea.updatedAt, shelfLifeMonths: tea.shelfLifeMonths, color: tea.color, teaType: tea.teaType },
     form: teaToForm(tea),
     imageSrc: tea.imageId ? `/bilder/${tea.imageId}` : null,
     jobs,
@@ -108,7 +108,7 @@ function ImageUpload({ teaId, imageSrc }: { teaId: number; imageSrc: string | nu
 }
 
 export default function EditTea({ loaderData, actionData }: Route.ComponentProps) {
-  const { tea, form, imageSrc, jobs, shop, templates, formats, printers, isAdmin } = loaderData;
+  const { tea, form, imageSrc, jobs, shop, kinds, templates, formats, printers, isAdmin } = loaderData;
   const [params] = useSearchParams();
   const choice = useDeviceChoice(printers, formats);
   const [layout, setLayout] = useState<PrintLayout>({ count: labelsPerSheet(choice.format), start: Math.min(choice.printer.nextSlot, labelsPerSheet(choice.format)) });
@@ -153,6 +153,9 @@ export default function EditTea({ loaderData, actionData }: Route.ComponentProps
         initial={actionData?.values ?? form}
         errors={actionData?.errors}
         shop={shop}
+        kinds={kinds}
+        legacyTeaType={tea.teaType}
+        legacyColor={tea.color}
         templates={templates}
         format={choice.format}
         imageSrc={imageSrc}

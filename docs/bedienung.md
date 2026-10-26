@@ -7,9 +7,16 @@ der Administrator unter **Verwaltung → Benutzer** an. Nach fünf falschen Vers
 für diesen Namen zehn Minuten gesperrt. Das eigene Passwort lässt sich über den Namen oben rechts
 ändern.
 
+## App auf dem iPad installieren
+
+Die App ist für das iPad im Querformat gemacht. Am besten als App auf den Home-Bildschirm legen:
+In Safari die Adresse öffnen, **Teilen → Zum Home-Bildschirm** tippen. Danach startet sie wie eine
+eigene App mit Tee-Symbol und ohne Adressleiste.
+
 ## Etiketten drucken
 
-1. Unter **Tees** den Tee anklicken oder suchen.
+1. Unter **Tees** den Tee anklicken oder suchen. Die Liste lässt sich sortieren: nach Name (A–Z oder
+   Z–A), zuletzt oder zuerst hinzugefügt, zuletzt gedruckt oder nach Teeart.
 2. Rechts unter **Drucken** Drucker und, falls es mehrere gibt, das Bogenformat wählen. Die Auswahl
    merkt sich der Browser.
 3. **Anzahl Etiketten** eintragen.
@@ -18,11 +25,13 @@ für diesen Namen zehn Minuten gesperrt. Das eigene Passwort lässt sich über d
    durchgestrichen, bedruckte grün.
 5. Optional unter **Druckangaben** Füllmenge, Mindesthaltbarkeit und Los eintragen. Ist bei der Sorte
    eine Haltbarkeit hinterlegt, wird das MHD vorgeschlagen.
-6. **Vorschau** zeigt das PDF in der Seite, **PDF erstellen** öffnet es in einem neuen Tab.
-7. Im Druckdialog **Tatsächliche Größe** bzw. **100 %** wählen. Das PDF gibt das bereits vor, nicht
-   jedes Programm hält sich aber daran.
+6. **Vorschau** zeigt das PDF, ohne den Druck zu buchen. **Drucken** erstellt das PDF und zeigt es
+   in einem Fenster innerhalb der App.
+7. Dort **Drucken** tippen. Auf dem iPad öffnet sich das Teilen-Menü, darin **Drucken** wählen. Am
+   Computer erscheint der Druckdialog: **Tatsächliche Größe** bzw. **100 %** wählen.
+   **PDF speichern** legt die Datei ab, **‹ Zurück zur App** schließt das Fenster.
 
-Passt ein Text nicht aufs Etikett, wird kein PDF erstellt. Die Seite erklärt den Grund und bietet
+Passt ein Text nicht aufs Etikett, wird kein PDF erstellt. Das Fenster erklärt den Grund und bietet
 „Trotzdem erstellen“ an; dann wird der Text abgeschnitten.
 
 ### Mehrere Sorten auf einem Bogen
@@ -33,8 +42,12 @@ Etiketten werden in dieser Reihenfolge ab dem ersten freien Feld verteilt.
 ## Tee anlegen oder ändern
 
 1. Unter **Tees** auf **+ Neuer Tee** klicken.
-2. Name, Teeart, Beschreibung und Zutaten eintragen.
-   - Bekannte Teearten setzen Farbe und Motiv automatisch.
+2. Name eintragen, eine der fünf Teearten wählen (Früchtetee, Kräutertee, Schwarztee, Grüntee,
+   Rooibostee) und bei Bedarf **aromatisiert** anhaken. Auf dem Etikett steht dann zum Beispiel
+   „Aromatisierter Schwarztee“ in zwei Zeilen. Farbe und Motiv kommen von der Teeart.
+   - **Name** ist der Name in der Liste, **Titel auf dem Etikett** das, was gedruckt wird. Ist der
+     Titel leer, wird der Name gedruckt. Zeilenumbrüche im Titel werden übernommen.
+   - Beschreibung und Zutaten eintragen.
    - Leerzeilen in der Beschreibung werden als Absatz übernommen.
    - Allergene in den Zutaten hervorheben: Wort markieren und über dem Feld **F** (fett),
      **U** (unterstrichen) oder **K** (kursiv) drücken. Im Text erscheinen dann Zeichen:
@@ -44,7 +57,8 @@ Etiketten werden in dieser Reihenfolge ab dem ersten freien Feld verteilt.
      „Grüner Tee\*, Hibiskus\*“, bleibt als Sternchen stehen.
 3. Optional: Zubereitung (Menge, Temperatur, Ziehzeit), unter **Weitere Angaben** Bio, Preis,
    Strichcode (EAN), Link für einen QR-Code und Haltbarkeit in Monaten.
-4. Unter **Gestaltung** Vorlage und Motiv wählen. Nach dem Anlegen lässt sich ein eigenes Bild
+4. Unter **Gestaltung** Vorlage und Motiv wählen. „Motiv der Teeart“ nimmt das Bild, das in den
+   Einstellungen für die Teeart hinterlegt ist. Nach dem Anlegen lässt sich ein eigenes Bild
    hochladen, das dann das Motiv ersetzt.
 5. Die Vorschau rechts zeigt das Etikett genau so, wie es gedruckt wird. Darunter zeigt die
    **Platzanzeige**, wie eng der Text schon ist.
@@ -52,7 +66,8 @@ Etiketten werden in dieser Reihenfolge ab dem ersten freien Feld verteilt.
    (zum Beispiel Emoji).
 7. **Tee anlegen** bzw. **Änderungen speichern**. Gedruckt werden kann erst nach dem Speichern.
 
-**Duplizieren** legt eine Kopie an, praktisch für ähnliche Mischungen. **Archivieren** blendet eine
+**Duplizieren** legt eine Kopie mit neuem Namen an; der Titel auf dem Etikett bleibt gleich. Praktisch
+für dieselbe Sorte in anderer Füllmenge oder ähnliche Mischungen. **Archivieren** blendet eine
 Sorte aus; im Archiv lässt sie sich wiederherstellen. Endgültig löschen darf nur ein Administrator.
 
 ## Drucker einrichten (einmal pro Drucker)
@@ -90,9 +105,9 @@ Die Randmarken an den Papierkanten zeigen, ab wie vielen Millimetern der Drucker
 | Bereich | Wofür |
 |---|---|
 | Import | Alte Photoshop-PDFs hochladen, erkannte Daten prüfen und übernehmen; CSV-Import und -Export |
-| Vorlagen | Gestaltung: Variante, Schriften, Schriftgrößen, Motivhöhe, sichtbare Elemente |
+| Vorlagen | Gestaltung: Variante (klassisch, ohne Rahmen, minimal), Schriften, Schriftgrößen inkl. Teeart und Fußzeile, Motivhöhe, sichtbare Elemente |
 | Bogenformate | Papiergröße und Etikettenraster für andere Etikettenbögen |
-| Einstellungen | Fußzeile (Texte links/rechts, zweite Zeile, Trenner, kursiv, Formatierung), Öko-Kontrollstelle, Verhalten bei zu langem Text |
+| Einstellungen | Farbe und Motivbild je Teeart, Fußzeile (Texte links/rechts, zweite Zeile, Trenner, kursiv, Formatierung), Öko-Kontrollstelle, Verhalten bei zu langem Text |
 | Benutzer | Zugänge anlegen, Rollen, Passwörter, deaktivieren |
 | Protokoll | Wer hat wann was geändert |
 | Sicherung | Datenbank herunterladen, Sicherung anlegen oder wiederherstellen |
@@ -101,7 +116,8 @@ Die Randmarken an den Papierkanten zeigen, ab wie vielen Millimetern der Drucker
 
 1. **Verwaltung → Import**, unter „Alte Etiketten (PDF) übernehmen“ alle PDFs auf einmal auswählen.
 2. Die Dateien werden hochgeladen und nacheinander gelesen, etwa zwei bis drei Sekunden pro Datei.
-3. Jedes Ergebnis erscheint mit Bild des alten Etiketts. Die Prozentzahlen zeigen, wie sicher die
+3. Jedes Ergebnis erscheint mit Bild des alten Etiketts. Die erkannte Teeart wird einer der fünf
+   Arten zugeordnet, „Aromatisiert“ wird mit erkannt. Die Prozentzahlen zeigen, wie sicher die
    Erkennung ist. Felder bei Bedarf korrigieren und **Übernehmen**.
 4. Gibt es den Namen schon, wird das angezeigt. Mit „trotzdem zusätzlich anlegen“ entsteht eine
    zweite Sorte.

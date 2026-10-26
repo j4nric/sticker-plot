@@ -44,11 +44,13 @@ describe("readCalibration", () => {
 
 describe("readTeaForm", () => {
   it("trimmt und normalisiert", () => {
-    const r = readTeaForm(form({ name: "  China Sencha ", teaType: "Grüner Tee", description: "a\r\nb", ingredients: "", color: "#4F9A3F" }));
-    expect(r.ok && r.value).toMatchObject({ name: "China Sencha", teaType: "Grüner Tee", description: "a\nb", ingredients: "", color: "#4f9a3f", motif: "auto", brewTemp: null, organic: false });
+    const r = readTeaForm(form({ name: "  China Sencha ", title: "China Sencha", kind: "gruen", description: "a\r\nb", ingredients: "" }));
+    expect(r.ok && r.value).toMatchObject({ name: "China Sencha", title: "", kind: "gruen", flavored: false, teaType: "Grüntee", description: "a\nb", ingredients: "", motif: "auto", brewTemp: null, organic: false });
+    const flavored = readTeaForm(form({ name: "Kirsche", title: "Wilde\r\n\r\nKirsche ", kind: "rooibos", flavored: "on" }));
+    expect(flavored.ok && flavored.value).toMatchObject({ title: "Wilde\nKirsche", teaType: "Aromatisierter Rooibostee" });
   });
   it("prüft Zubereitung, EAN, Link und nicht druckbare Zeichen", () => {
-    const r = readTeaForm(form({ name: "Tee 🍵", color: "#4f9a3f", brewTemp: "120", ean: "123", productUrl: "javascript:alert(1)" }));
+    const r = readTeaForm(form({ name: "Tee 🍵", kind: "gruen", brewTemp: "120", ean: "123", productUrl: "javascript:alert(1)" }));
     expect(r.ok).toBe(false);
     if (!r.ok) {
       expect(r.errors.name).toMatch(/nicht gedruckt/);
@@ -56,16 +58,16 @@ describe("readTeaForm", () => {
       expect(r.errors.ean).toBeDefined();
       expect(r.errors.productUrl).toBeDefined();
     }
-    const ok = readTeaForm(form({ name: "Mate", color: "#7c8a2e", brewTemp: "90", brewTime: "5", ean: "400638133393", organic: "on", shelfLifeMonths: "24" }));
+    const ok = readTeaForm(form({ name: "Mate", kind: "kraeuter", brewTemp: "90", brewTime: "5", ean: "400638133393", organic: "on", shelfLifeMonths: "24" }));
     expect(ok.ok && ok.value).toMatchObject({ brewTemp: 90, brewTime: "5 Min.", ean: "4006381333931", organic: true, shelfLifeMonths: 24 });
   });
 
-  it("verlangt Namen und gültige Farbe", () => {
-    const r = readTeaForm(form({ name: " ", color: "rot" }));
+  it("verlangt Namen und eine der fünf Teearten", () => {
+    const r = readTeaForm(form({ name: " ", kind: "oolong" }));
     expect(r.ok).toBe(false);
     if (!r.ok) {
       expect(r.errors.name).toBeDefined();
-      expect(r.errors.color).toBeDefined();
+      expect(r.errors.kind).toBe("Bitte eine Teeart wählen");
     }
   });
 });

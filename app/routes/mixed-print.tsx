@@ -3,7 +3,8 @@ import { PrintPanel } from "~/components/PrintPanel";
 import { useDeviceChoice } from "~/components/useDeviceChoice";
 import { editorData } from "~/lib/editor.server";
 import { labelsPerSheet, layoutSequence, MAX_PRINT_LABELS, type PrintLayout } from "~/label/geometry";
-import { listTeas } from "~/models/tea.server";
+import { getKindSettings } from "~/models/settings.server";
+import { listTeas, teaColor } from "~/models/tea.server";
 import type { Route } from "./+types/mixed-print";
 
 export function meta() {
@@ -12,7 +13,8 @@ export function meta() {
 
 export function loader() {
   const d = editorData();
-  return { teas: listTeas().map((t) => ({ id: t.id, name: t.name, teaType: t.teaType, color: t.color })), printers: d.printers, formats: d.formats };
+  const kinds = getKindSettings();
+  return { teas: listTeas().map((t) => ({ id: t.id, name: t.name, teaType: t.teaType, color: teaColor(t, kinds) })), printers: d.printers, formats: d.formats };
 }
 
 export default function MixedPrint({ loaderData }: Route.ComponentProps) {

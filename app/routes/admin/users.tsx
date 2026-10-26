@@ -110,7 +110,7 @@ export default function Users({ loaderData, actionData }: Route.ComponentProps) 
                   </select>
                 </div>
                 <label className="flex items-center gap-2 pb-2 text-sm">
-                  <input type="checkbox" name="active" defaultChecked={u.active} className="size-4" />
+                  <input type="checkbox" name="active" defaultChecked={u.active} />
                   aktiv
                 </label>
                 <button className="btn-secondary" name="intent" value="update" disabled={busy}>

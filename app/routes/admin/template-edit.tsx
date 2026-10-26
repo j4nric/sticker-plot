@@ -7,12 +7,13 @@ import { currentUser } from "~/lib/session.server";
 import { readTemplateForm } from "~/lib/validation";
 import { audit } from "~/models/audit.server";
 import { listFormats } from "~/models/format.server";
-import { getSettings } from "~/models/settings.server";
-import { allTeas, toLabelContent } from "~/models/tea.server";
+import { getKindSettings, getSettings } from "~/models/settings.server";
+import { allTeas, previewLabelContent } from "~/models/tea.server";
 import { deleteTemplate, getTemplate, listTemplates, saveTemplate, setDefaultTemplate } from "~/models/template.server";
 import { formatCompact } from "~/lib/locale";
 import { parseId } from "~/lib/params";
 import { Notice } from "~/components/Notice";
+import { TEA_KINDS } from "~/label/tea-types";
 import type { Route } from "./+types/template-edit";
 
 export function meta() {
@@ -21,11 +22,12 @@ export function meta() {
 
 const SAMPLE: LabelContent = {
   name: "China Sencha",
-  teaType: "Grüner Tee",
+  teaType: "Aromatisierter Grüntee",
+  kind: "gruen",
   description:
     "Ein Grüntee mit mittelgrünem, flachgepresstem Blatt und einer feinherben, leicht heuigen Note, der in Asien besonders beliebt ist und einen hellgelben, duftigen Aufguss bietet.",
   ingredients: "Grüner Tee (China)",
-  color: "#4f9a3f",
+  color: TEA_KINDS.gruen.color,
   brewAmount: "1 TL / 250 ml",
   brewTemp: 80,
   brewTime: "2–3 Min.",
@@ -35,12 +37,13 @@ export function loader({ params }: Route.LoaderArgs) {
   const isNew = params.templateId === "neu";
   const template = isNew ? null : getTemplate(parseId(params.templateId));
   if (!isNew && !template) throw data("Vorlage nicht gefunden", { status: 404 });
+  const kinds = getKindSettings();
   const samples = [
     { id: 0, label: "Beispiel: China Sencha", content: SAMPLE },
     ...allTeas()
       .filter((t) => !t.archivedAt)
       .slice(0, 200)
-      .map((t) => ({ id: t.id, label: t.name, content: toLabelContent(t, t.imageId ? `/bilder/${t.imageId}` : null) })),
+      .map((t) => ({ id: t.id, label: t.name, content: previewLabelContent(t, kinds) })),
   ];
   return {
     template: template ?? { id: null, name: "", isDefault: false, params: DEFAULT_TEMPLATE_PARAMS },
@@ -96,7 +99,7 @@ export default function TemplateEdit({ loaderData, actionData }: Route.Component
   const update = (patch: Partial<TemplateParams>) => setP((old) => normalizeParams({ ...old, ...patch }));
   const check = (name: keyof TemplateParams, label: string) => (
     <label className="flex items-center gap-2 text-sm">
-      <input type="checkbox" name={name} checked={Boolean(p[name])} onChange={(e) => update({ [name]: e.target.checked })} className="size-4" />
+      <input type="checkbox" name={name} checked={Boolean(p[name])} onChange={(e) => update({ [name]: e.target.checked })} />
       {label}
     </label>
   );
@@ -158,6 +161,10 @@ export default function TemplateEdit({ loaderData, actionData }: Route.Component
             <Range name="titleMin" label="Titel: kleinste Schrift (pt)" value={p.titleMin} onChange={(v) => update({ titleMin: v })} />
             <Range name="bodyMax" label="Text: größte Schrift (pt)" value={p.bodyMax} onChange={(v) => update({ bodyMax: v })} />
             <Range name="bodyMin" label="Text: kleinste Schrift (pt)" value={p.bodyMin} onChange={(v) => update({ bodyMin: v })} />
+            <Range name="typeMax" label="Teeart: größte Schrift (pt)" value={p.typeMax} onChange={(v) => update({ typeMax: v })} />
+            <Range name="typeMin" label="Teeart: kleinste Schrift (pt)" value={p.typeMin} onChange={(v) => update({ typeMin: v })} />
+            <Range name="footerMax" label="Fußzeile: größte Schrift (pt)" value={p.footerMax} onChange={(v) => update({ footerMax: v })} />
+            <Range name="footerMin" label="Fußzeile: kleinste Schrift (pt)" value={p.footerMin} onChange={(v) => update({ footerMin: v })} />
             <Range name="artHeight" label="Höhe des Motivs (mm, 0 = aus)" value={p.artHeight} onChange={(v) => update({ artHeight: v })} step={0.5} />
           </div>
           <fieldset className="grid gap-2 sm:grid-cols-2">

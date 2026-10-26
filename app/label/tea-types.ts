@@ -1,21 +1,41 @@
-/** Vorschläge für Teearten mit passender Standardfarbe der Tasse. */
-export const TEA_TYPES: { name: string; color: string }[] = [
-  { name: "Grüner Tee", color: "#4f9a3f" },
-  { name: "Schwarzer Tee", color: "#8a4b2a" },
-  { name: "Oolong", color: "#b07a2a" },
-  { name: "Weißer Tee", color: "#b3a06a" },
-  { name: "Matcha", color: "#5d9a2c" },
-  { name: "Rooibos", color: "#c0522b" },
-  { name: "Kräutertee", color: "#6c8f3a" },
-  { name: "Früchtetee", color: "#c2185b" },
-  { name: "Chai", color: "#a0582d" },
-  { name: "Mate", color: "#7c8a2e" },
-  { name: "Honeybush", color: "#b4682f" },
+/**
+ * Die fünf Teearten des Ladens. Jede kann aromatisiert sein; Farbe und
+ * Motiv kommen zentral aus den Einstellungen (Standardwerte hier).
+ */
+export const TEA_KINDS = {
+  fruechte: { name: "Früchtetee", color: "#c2185b" },
+  kraeuter: { name: "Kräutertee", color: "#6c8f3a" },
+  schwarz: { name: "Schwarztee", color: "#8a4b2a" },
+  gruen: { name: "Grüntee", color: "#4f9a3f" },
+  rooibos: { name: "Rooibostee", color: "#c0522b" },
+} as const satisfies Record<string, { name: string; color: string }>;
+
+export type TeaKind = keyof typeof TEA_KINDS;
+export const TEA_KIND_KEYS = Object.keys(TEA_KINDS) as TeaKind[];
+
+export const DEFAULT_TEA_COLOR = TEA_KINDS.gruen.color;
+
+export const isTeaKind = (v: unknown): v is TeaKind => typeof v === "string" && v in TEA_KINDS;
+
+/** Text auf dem Etikett, z. B. „Aromatisierter Schwarztee“. */
+export function teaTypeLabel(kind: TeaKind, flavored: boolean): string {
+  return `${flavored ? "Aromatisierter " : ""}${TEA_KINDS[kind].name}`;
+}
+
+const KIND_PATTERNS: [TeaKind, RegExp][] = [
+  ["fruechte", /fr[uü]e?cht|frucht/],
+  ["kraeuter", /kr[aä]e?uter/],
+  ["rooibos", /rooibos|rotbusch/],
+  ["schwarz", /schwarz/],
+  ["gruen", /gr[uü]e?n|sencha|matcha/],
 ];
 
-export const DEFAULT_TEA_COLOR = "#4f9a3f";
-
-export function colorForTeaType(type: string): string | undefined {
-  const t = type.trim().toLowerCase();
-  return TEA_TYPES.find((x) => x.name.toLowerCase() === t)?.color;
+/**
+ * Erkennt Art und Aromatisierung in freiem Text („Aromatisierter grüner Tee“,
+ * „Rooibos“, „Früchte-Tee“). Für alte Datensätze, CSV und den PDF-Import.
+ */
+export function guessTeaKind(text: string): { kind: TeaKind; flavored: boolean } | null {
+  const t = text.toLowerCase();
+  const hit = KIND_PATTERNS.find(([, re]) => re.test(t));
+  return hit ? { kind: hit[0], flavored: /aromati/.test(t) } : null;
 }

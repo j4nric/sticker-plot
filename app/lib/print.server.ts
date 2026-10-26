@@ -1,4 +1,5 @@
 import { labelsPerSheet, nextFreeSlot } from "~/label/geometry";
+import { isTeaKind } from "~/label/tea-types";
 import type { PrintExtras } from "~/label/Label";
 import { resolveFormat } from "~/models/format.server";
 import { imageDataUrl } from "~/models/image.server";
@@ -60,11 +61,20 @@ export async function printLabels(order: PrintOrder): Promise<PrintOutcome> {
   const start = Math.min(Math.max(1, order.start), perSheet);
 
   const items: SheetItem[] = [];
+  // Motive der Teearten nur einmal laden, auch wenn mehrere Sorten sie nutzen
+  const kindImages = new Map<number, string | null>();
+  const kindImage = (id: number | null) => {
+    if (id == null) return null;
+    if (!kindImages.has(id)) kindImages.set(id, imageDataUrl(id));
+    return kindImages.get(id)!;
+  };
   const teaNames: { id: number; name: string; count: number }[] = [];
   for (const line of order.lines) {
     const tea = getTea(line.teaId);
     if (!tea) return { ok: false, status: 404, message: `Tee ${line.teaId} wurde nicht gefunden.` };
-    const item: SheetItem = { content: toLabelContent(tea, imageDataUrl(tea.imageId)), template: resolveTemplate(tea.templateId).params };
+    const kindImageId = isTeaKind(tea.kind) ? settings.kinds[tea.kind].imageId : null;
+    const content = toLabelContent(tea, settings.kinds, { imageSrc: imageDataUrl(tea.imageId), kindImageSrc: kindImage(kindImageId) });
+    const item: SheetItem = { content, template: resolveTemplate(tea.templateId).params };
     for (let i = 0; i < line.count; i++) items.push(item);
     teaNames.push({ id: tea.id, name: tea.name, count: line.count });
   }
@@ -107,6 +117,10 @@ const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&l
 
 /** Einfache HTML-Seite für Fehler beim PDF-Erzeugen (öffnet sich im neuen Tab). */
 export function printErrorResponse(outcome: Extract<PrintOutcome, { ok: false }>, request: Request): Response {
+  // Druckdialog der App: Meldung als JSON, „Trotzdem erstellen“ bietet der Dialog selbst an
+  if (request.headers.get("Accept")?.includes("application/json")) {
+    return Response.json({ message: outcome.message, canForce: outcome.status === 422 }, { status: outcome.status, headers: { "Cache-Control": "no-store" } });
+  }
   const url = new URL(request.url);
   url.searchParams.set("trotzdem", "1");
   const force =

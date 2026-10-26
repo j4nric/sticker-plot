@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useRevalidator } from "react-router";
 import { labelsPerSheet, layoutPages, MAX_PRINT_LABELS, type PrintLayout } from "~/label/geometry";
-import { PdfDialog } from "./PdfDialog";
+import { PdfDialog, type PdfRequest } from "./PdfDialog";
 import { SlotPicker } from "./SlotPicker";
 import type { FormatOption, PrinterOption, useDeviceChoice } from "./useDeviceChoice";
 
@@ -10,29 +10,6 @@ function newJobId(): string {
   const bytes = new Uint8Array(12);
   crypto.getRandomValues(bytes);
   return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
-}
-
-/**
- * Nach dem Öffnen des PDFs im neuen Tab das vom Server fortgeschriebene
- * Startfeld holen: beim Zurückkehren in diesen Tab und sicherheitshalber
- * nach einigen Sekunden.
- */
-function useRefreshAfterPrint() {
-  const { revalidate } = useRevalidator();
-  const pending = useRef(false);
-  useEffect(() => {
-    const onFocus = () => {
-      if (!pending.current) return;
-      pending.current = false;
-      void revalidate();
-    };
-    window.addEventListener("focus", onFocus);
-    return () => window.removeEventListener("focus", onFocus);
-  }, [revalidate]);
-  return () => {
-    pending.current = true;
-    window.setTimeout(() => void revalidate(), 5000);
-  };
 }
 
 function addMonths(months: number): string {
@@ -71,9 +48,8 @@ export function PrintPanel({
   children?: ReactNode;
 }) {
   const formRef = useRef<HTMLFormElement>(null);
-  const jobRef = useRef<HTMLInputElement>(null);
-  const refreshAfterPrint = useRefreshAfterPrint();
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const { revalidate } = useRevalidator();
+  const [request, setRequest] = useState<PdfRequest | null>(null);
   const [mhd, setMhd] = useState(shelfLifeMonths ? addMonths(shelfLifeMonths) : "");
   const format = choice.format;
   const perSheet = labelsPerSheet(format);
@@ -88,13 +64,15 @@ export function PrintPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [choice.printerId, choice.printer.nextSlot, perSheet]);
 
-  const buildUrl = () => {
+  // PDF in der App erzeugen und anzeigen (kein neuer Tab, siehe PdfDialog)
+  const open = (kind: PdfRequest["kind"]) => {
     const params = new URLSearchParams();
     new FormData(formRef.current!).forEach((v, k) => {
       if (typeof v === "string" && v !== "") params.set(k, v);
     });
-    params.set("vorschau", "1");
-    return `${action}?${params}`;
+    if (kind === "preview") params.set("vorschau", "1");
+    else params.set("auftrag", newJobId());
+    setRequest({ url: `${action}?${params}`, fileName: "etiketten.pdf", kind });
   };
 
   return (
@@ -102,15 +80,13 @@ export function PrintPanel({
       ref={formRef}
       method="get"
       action={action}
-      target="_blank"
       className="card space-y-4"
       id="drucken"
-      onSubmit={() => {
-        if (jobRef.current) jobRef.current.value = newJobId();
-        refreshAfterPrint();
+      onSubmit={(e) => {
+        e.preventDefault();
+        open("print");
       }}
     >
-      <input ref={jobRef} type="hidden" name="auftrag" defaultValue="" />
       <h2 className="font-display text-lg tracking-wide uppercase">Drucken</h2>
       {Object.entries(hiddenFields ?? {}).map(([k, v]) => (
         <input key={k} type="hidden" name={k} value={v} />
@@ -229,13 +205,14 @@ export function PrintPanel({
         <button className="btn-primary" disabled={Boolean(disabledReason)}>
           PDF erstellen
         </button>
-        <button type="button" className="btn-secondary" disabled={Boolean(disabledReason)} onClick={() => setPreviewUrl(buildUrl())}>
+        <button type="button" className="btn-secondary" disabled={Boolean(disabledReason)} onClick={() => open("preview")}>
           Vorschau
         </button>
         {disabledReason ? <span className="text-sm text-amber-700">{disabledReason}</span> : null}
       </div>
-      <p className="field-hint">Das PDF öffnet sich in einem neuen Tab. Beim Drucken „Tatsächliche Größe“ bzw. 100 % wählen.</p>
-      <PdfDialog url={previewUrl} onClose={() => setPreviewUrl(null)} />
+      <p className="field-hint">„PDF erstellen“ bucht den Druck und schreibt das Startfeld fort, „Vorschau“ nicht.</p>
+      {/* nach dem Erstellen das fortgeschriebene Startfeld vom Server holen */}
+      <PdfDialog request={request} onClose={() => setRequest(null)} onCreated={() => void revalidate()} />
     </form>
   );
 }

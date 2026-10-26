@@ -4,7 +4,7 @@ import { validColor } from "~/label/color";
 import type { PrintLayout, SheetGeometry } from "~/label/geometry";
 import type { LabelContent, ShopInfo } from "~/label/Label";
 import { MOTIFS } from "~/label/motifs";
-import { colorForTeaType, DEFAULT_TEA_COLOR, TEA_TYPES } from "~/label/tea-types";
+import { isTeaKind, TEA_KIND_KEYS, TEA_KINDS, teaTypeLabel } from "~/label/tea-types";
 import type { TemplateParams } from "~/label/template";
 import { unsupportedChars } from "~/label/text";
 import { FormatToolbar } from "./FormatToolbar";
@@ -13,10 +13,12 @@ import { Notice } from "./Notice";
 
 export interface TeaFormValues {
   name: string;
-  teaType: string;
+  /** Titel auf dem Etikett; leer = Name */
+  title: string;
+  kind: string;
+  flavored: boolean;
   description: string;
   ingredients: string;
-  color: string;
   motif: string;
   templateId: string;
   brewAmount: string;
@@ -32,10 +34,11 @@ export type TeaFormErrors = Partial<Record<keyof TeaFormValues, string>>;
 
 export const EMPTY_TEA: TeaFormValues = {
   name: "",
-  teaType: "",
+  title: "",
+  kind: "",
+  flavored: false,
   description: "",
   ingredients: "",
-  color: DEFAULT_TEA_COLOR,
   motif: "auto",
   templateId: "",
   brewAmount: "",
@@ -48,7 +51,8 @@ export const EMPTY_TEA: TeaFormValues = {
   shelfLifeMonths: "",
 };
 
-const SWATCHES = Array.from(new Set(TEA_TYPES.map((t) => t.color)));
+/** Farbe und Motiv-URL je Teeart aus den Einstellungen */
+export type KindLook = Record<string, { color: string; imageSrc: string | null }>;
 
 export interface TemplateOption {
   id: number;
@@ -61,6 +65,9 @@ export function TeaEditor({
   initial,
   errors,
   shop,
+  kinds,
+  legacyTeaType,
+  legacyColor,
   isNew,
   templates,
   format,
@@ -73,6 +80,10 @@ export function TeaEditor({
   initial: TeaFormValues;
   errors?: TeaFormErrors;
   shop: ShopInfo;
+  kinds: KindLook;
+  /** Teeart-Text und Farbe alter Sorten, solange keine der fünf Arten gewählt ist */
+  legacyTeaType?: string;
+  legacyColor?: string;
   isNew: boolean;
   templates: TemplateOption[];
   format: SheetGeometry;
@@ -88,7 +99,6 @@ export function TeaEditor({
   const navigation = useNavigation();
   const saving = navigation.state === "submitting" && navigation.formData?.get("intent") === "save";
   const [values, setValues] = useState<TeaFormValues>(initial);
-  const [colorTouched, setColorTouched] = useState(!isNew && colorForTeaType(initial.teaType) !== initial.color);
   const [overflowing, setOverflowing] = useState(false);
   const ingredientsRef = useRef<HTMLTextAreaElement>(null);
 
@@ -98,26 +108,24 @@ export function TeaEditor({
 
   const set = (key: keyof TeaFormValues) => (e: { target: { value: string } }) => {
     const value = e.target.value;
-    setValues((v) => {
-      const next = { ...v, [key]: value };
-      if (key === "teaType" && !colorTouched) {
-        const preset = colorForTeaType(value);
-        if (preset) next.color = preset;
-      }
-      return next;
-    });
-  };
-  const pickColor = (color: string) => {
-    setColorTouched(true);
-    setValues((v) => ({ ...v, color }));
+    setValues((v) => ({ ...v, [key]: value }));
   };
 
+  const kind = isTeaKind(values.kind) ? values.kind : null;
   const content: LabelContent = useMemo(
-    () => ({ ...values, color: validColor(values.color), brewTemp: values.brewTemp ? Number(values.brewTemp) || null : null, imageSrc: imageSrc ?? null }),
-    [values, imageSrc],
+    () => ({
+      ...values,
+      name: values.title.trim() || values.name,
+      teaType: kind ? teaTypeLabel(kind, values.flavored) : (legacyTeaType ?? ""),
+      color: validColor(kind ? (kinds[kind]?.color ?? TEA_KINDS[kind].color) : (legacyColor ?? TEA_KINDS.gruen.color)),
+      brewTemp: values.brewTemp ? Number(values.brewTemp) || null : null,
+      imageSrc: imageSrc ?? null,
+      kindImageSrc: kind ? (kinds[kind]?.imageSrc ?? null) : null,
+    }),
+    [values, kind, kinds, imageSrc, legacyTeaType, legacyColor],
   );
 
-  const badChars = unsupportedChars([values.name, values.teaType, values.description, values.ingredients, values.brewAmount, values.brewTime, values.price].join(""));
+  const badChars = unsupportedChars([values.name, values.title, values.description, values.ingredients, values.brewAmount, values.brewTime, values.price].join(""));
 
   const field = (key: keyof TeaFormValues, label: string, props: Record<string, unknown> = {}, hint?: string) => (
     <div>
@@ -130,48 +138,64 @@ export function TeaEditor({
   );
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_auto]">
+    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,25rem)]">
       <div className="space-y-4">
         <Form method="post" className="card space-y-5" id="tea-form">
           <input type="hidden" name="intent" value="save" />
-          {field("name", "Name des Tees", { required: true, maxLength: 80, autoFocus: isNew })}
-
-          <div className="grid gap-5 sm:grid-cols-2">
+          <div className="grid gap-5 lg:grid-cols-2">
+            {field("name", "Name in der App", { required: true, maxLength: 80, autoFocus: isNew }, "Für Liste und Suche, z. B. „Wilde Kirsche (Rooibos)“.")}
             <div>
-              <label className="field-label" htmlFor="teaType">
-                Teeart
+              <label className="field-label" htmlFor="title">
+                Titel auf dem Etikett
               </label>
-              <input id="teaType" name="teaType" list="tea-types" value={values.teaType} onChange={set("teaType")} maxLength={40} className="field-input" placeholder="z. B. Grüner Tee" autoComplete="off" />
-              <datalist id="tea-types">
-                {TEA_TYPES.map((t) => (
-                  <option key={t.name} value={t.name} />
-                ))}
-              </datalist>
-              {errors?.teaType ? <p className="field-error">{errors.teaType}</p> : <p className="field-hint">Bekannte Teearten setzen Farbe und Motiv automatisch.</p>}
-            </div>
-            <div>
-              <span className="field-label">Farbe</span>
-              <input type="hidden" name="color" value={values.color} />
-              <div className="flex flex-wrap items-center gap-1.5">
-                {SWATCHES.map((c) => (
-                  <button
-                    key={c}
-                    type="button"
-                    onClick={() => pickColor(c)}
-                    className={`size-7 rounded-full border-2 ${values.color.toLowerCase() === c ? "border-stone-900 ring-2 ring-stone-300" : "border-white shadow"}`}
-                    style={{ background: c }}
-                    title={TEA_TYPES.filter((t) => t.color === c).map((t) => t.name).join(", ")}
-                    aria-label={`Farbe ${c}`}
-                  />
-                ))}
-                <label className="relative ml-1 inline-flex cursor-pointer items-center gap-1 text-xs text-stone-600" title="Eigene Farbe">
-                  <input type="color" value={validColor(values.color)} onChange={(e) => pickColor(e.target.value)} className="size-7 cursor-pointer rounded border border-stone-300 bg-white p-0.5" />
-                  eigene
-                </label>
-              </div>
-              {errors?.color ? <p className="field-error">{errors.color}</p> : <p className="field-hint">Sehr helle Farben werden für Schrift automatisch abgedunkelt.</p>}
+              <textarea
+                id="title"
+                name="title"
+                rows={2}
+                value={values.title}
+                onChange={set("title")}
+                maxLength={80}
+                placeholder={values.name || "wie der Name"}
+                className="field-input"
+              />
+              {errors?.title ? <p className="field-error">{errors.title}</p> : <p className="field-hint">Leer = wie der Name. Mit Zeilenumbruch selbst trennen.</p>}
             </div>
           </div>
+
+          <fieldset>
+            <legend className="field-label">Teeart</legend>
+            <input type="hidden" name="kind" value={values.kind} />
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5" role="radiogroup" aria-label="Teeart">
+              {TEA_KIND_KEYS.map((k) => {
+                const active = values.kind === k;
+                return (
+                  <button
+                    key={k}
+                    type="button"
+                    role="radio"
+                    aria-checked={active}
+                    onClick={() => setValues((v) => ({ ...v, kind: k }))}
+                    className={`flex min-h-14 items-center gap-3 rounded-xl border-2 px-4 py-3 text-left text-lg font-semibold transition ${active ? "border-stone-900 bg-white shadow-md" : "border-stone-200 bg-stone-50 text-stone-700"}`}
+                  >
+                    <span className="size-6 flex-none rounded-full ring-2 ring-white" style={{ background: kinds[k]?.color ?? TEA_KINDS[k].color }} aria-hidden="true" />
+                    {TEA_KINDS[k].name}
+                  </button>
+                );
+              })}
+            </div>
+            <label className="mt-4 inline-flex min-h-12 cursor-pointer items-center gap-3 rounded-xl border-2 border-stone-200 px-4 py-2 text-lg font-semibold text-stone-800">
+              <input type="checkbox" name="flavored" checked={values.flavored} onChange={(e) => setValues((v) => ({ ...v, flavored: e.target.checked }))} className="size-6 accent-brand-700" />
+              aromatisiert
+            </label>
+            {errors?.kind ? (
+              <p className="field-error">{errors.kind}</p>
+            ) : (
+              <p className="field-hint">
+                Auf dem Etikett: <b>{kind ? teaTypeLabel(kind, values.flavored) : legacyTeaType ? `„${legacyTeaType}“ (bitte eine Art wählen)` : "bitte eine Art wählen"}</b>. Farbe und
+                Motiv kommen aus den Einstellungen.
+              </p>
+            )}
+          </fieldset>
 
           <div>
             <label className="field-label" htmlFor="description">
@@ -221,7 +245,7 @@ export function TeaEditor({
             <summary className="cursor-pointer text-sm font-semibold text-stone-700">Weitere Angaben: Bio, Preis, Barcode, Haltbarkeit</summary>
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
               <label className="flex items-center gap-2 text-sm font-semibold text-stone-700 sm:col-span-2">
-                <input type="checkbox" name="organic" checked={values.organic} onChange={(e) => setValues((v) => ({ ...v, organic: e.target.checked }))} className="size-4" />
+                <input type="checkbox" name="organic" checked={values.organic} onChange={(e) => setValues((v) => ({ ...v, organic: e.target.checked }))} />
                 Bio-Ware (druckt „BIO“ und die Öko-Kontrollstelle aus den Einstellungen)
               </label>
               {field("price", "Preis", { placeholder: "z. B. 8,90 € / 100 g", maxLength: 30 })}
@@ -255,6 +279,7 @@ export function TeaEditor({
                   {Object.entries(MOTIFS).map(([id, label]) => (
                     <option key={id} value={id} disabled={id === "bild" && !imageSrc}>
                       {label}
+                      {id === "auto" && kind ? ` (${kinds[kind]?.imageSrc ? "zentrales Bild" : "Zeichnung"} ${TEA_KINDS[kind].name})` : ""}
                       {id === "bild" && !imageSrc ? " (zuerst Bild hochladen)" : ""}
                     </option>
                   ))}

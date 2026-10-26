@@ -1,7 +1,7 @@
 /** Gestaltungsvorlagen: Variante und einstellbare Parameter. */
 
 export type FontKey = "oswald" | "serif" | "playfair";
-export type Variant = "klassisch" | "band" | "minimal";
+export type Variant = "klassisch" | "rahmenlos" | "minimal";
 
 export const FONTS: Record<FontKey, { label: string; family: string }> = {
   oswald: { label: "Oswald (schmal, kräftig)", family: '"Oswald", "Arial Narrow", sans-serif' },
@@ -11,7 +11,7 @@ export const FONTS: Record<FontKey, { label: string; family: string }> = {
 
 export const VARIANTS: Record<Variant, string> = {
   klassisch: "Klassisch – doppelter Rahmen, Motiv im Kreis",
-  band: "Band – farbige Fläche oben und unten, ohne Rahmen",
+  rahmenlos: "Ohne Rahmen – wie Klassisch, aber ohne Umrandung",
   minimal: "Minimal – feine Linien, viel Weißraum",
 };
 
@@ -25,6 +25,12 @@ export interface TemplateParams {
   titleMin: number;
   bodyMax: number;
   bodyMin: number;
+  /** Teeart (bis zu zwei Zeilen) */
+  typeMax: number;
+  typeMin: number;
+  /** Fußzeile (eine Zeile links/rechts plus optionale zweite Zeile) */
+  footerMax: number;
+  footerMin: number;
   /** Höhe des Motivs in mm, 0 = ohne Motiv */
   artHeight: number;
   showTeaType: boolean;
@@ -42,6 +48,10 @@ export const DEFAULT_TEMPLATE_PARAMS: TemplateParams = {
   titleMin: 8.5,
   bodyMax: 7.4,
   bodyMin: 5.6,
+  typeMax: 7.4,
+  typeMin: 5.2,
+  footerMax: 5.6,
+  footerMin: 4.4,
   artHeight: 27,
   showTeaType: true,
   showBrew: true,
@@ -54,6 +64,10 @@ export const PARAM_LIMITS = {
   titleMin: [6, 16],
   bodyMax: [5, 10],
   bodyMin: [4.5, 8],
+  typeMax: [5, 11],
+  typeMin: [4, 9],
+  footerMax: [4, 9],
+  footerMin: [3.5, 8],
   artHeight: [0, 40],
 } as const;
 
@@ -70,6 +84,7 @@ export function normalizeParams(input: unknown): TemplateParams {
   const o = (input && typeof input === "object" ? input : {}) as Record<string, unknown>;
   const d = DEFAULT_TEMPLATE_PARAMS;
   const p: TemplateParams = {
+    // „band“ gibt es nicht mehr: solche Vorlagen werden zu „klassisch“
     variant: pick(o.variant, Object.keys(VARIANTS) as Variant[], d.variant),
     titleFont: pick(o.titleFont, Object.keys(FONTS) as FontKey[], d.titleFont),
     bodyFont: pick(o.bodyFont, Object.keys(FONTS) as FontKey[], d.bodyFont),
@@ -78,6 +93,10 @@ export function normalizeParams(input: unknown): TemplateParams {
     titleMin: clamp(o.titleMin, PARAM_LIMITS.titleMin, d.titleMin),
     bodyMax: clamp(o.bodyMax, PARAM_LIMITS.bodyMax, d.bodyMax),
     bodyMin: clamp(o.bodyMin, PARAM_LIMITS.bodyMin, d.bodyMin),
+    typeMax: clamp(o.typeMax, PARAM_LIMITS.typeMax, d.typeMax),
+    typeMin: clamp(o.typeMin, PARAM_LIMITS.typeMin, d.typeMin),
+    footerMax: clamp(o.footerMax, PARAM_LIMITS.footerMax, d.footerMax),
+    footerMin: clamp(o.footerMin, PARAM_LIMITS.footerMin, d.footerMin),
     artHeight: clamp(o.artHeight, PARAM_LIMITS.artHeight, d.artHeight),
     showTeaType: bool(o.showTeaType, d.showTeaType),
     showBrew: bool(o.showBrew, d.showBrew),
@@ -86,6 +105,8 @@ export function normalizeParams(input: unknown): TemplateParams {
   };
   if (p.titleMin > p.titleMax) p.titleMin = p.titleMax;
   if (p.bodyMin > p.bodyMax) p.bodyMin = p.bodyMax;
+  if (p.typeMin > p.typeMax) p.typeMin = p.typeMax;
+  if (p.footerMin > p.footerMax) p.footerMin = p.footerMax;
   return p;
 }
 
@@ -100,6 +121,6 @@ export function parseParams(json: string | null | undefined): TemplateParams {
 /** Startwerte für neue Vorlagen je Variante. */
 export const VARIANT_PRESETS: Record<Variant, Partial<TemplateParams>> = {
   klassisch: {},
-  band: { titleFont: "oswald", artHeight: 25 },
+  rahmenlos: {},
   minimal: { titleFont: "playfair", titleUppercase: false, titleMax: 16, artHeight: 22 },
 };

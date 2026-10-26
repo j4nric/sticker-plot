@@ -13,7 +13,7 @@ export function meta() {
 
 export function loader() {
   const d = editorData();
-  return { shop: d.shop, templates: d.templates, format: d.formats[0]! };
+  return { shop: d.shop, kinds: d.kinds, templates: d.templates, format: d.formats[0]! };
 }
 
 export async function action({ request, context }: Route.ActionArgs) {
@@ -34,6 +34,7 @@ export default function NewTea({ loaderData, actionData }: Route.ComponentProps)
         initial={actionData?.values ?? EMPTY_TEA}
         errors={actionData?.errors}
         shop={loaderData.shop}
+        kinds={loaderData.kinds}
         templates={loaderData.templates}
         format={loaderData.format}
         isNew

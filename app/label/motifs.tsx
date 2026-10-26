@@ -1,10 +1,11 @@
 /** Motive für den oberen Etikettbereich. Alle Farben kommen aus CSS-Variablen der Sorte. */
 
-export type MotifId = "tasse" | "kanne" | "kraeuter" | "fruechte" | "bild" | "keins";
-export type MotifChoice = MotifId | "auto";
+/** „art“ = zentral hochgeladenes Motiv der Teeart (Einstellungen) */
+export type MotifId = "tasse" | "kanne" | "kraeuter" | "fruechte" | "bild" | "art" | "keins";
+export type MotifChoice = Exclude<MotifId, "art"> | "auto";
 
 export const MOTIFS: Record<MotifChoice, string> = {
-  auto: "Automatisch nach Teeart",
+  auto: "Motiv der Teeart",
   tasse: "Teetasse",
   kanne: "Teekanne",
   kraeuter: "Kräuterzweig",
@@ -13,15 +14,29 @@ export const MOTIFS: Record<MotifChoice, string> = {
   keins: "Kein Motiv",
 };
 
-/** „auto“ wählt das Motiv anhand der Teeart. */
-export function resolveMotif(choice: string, teaType: string, hasImage: boolean): MotifId {
-  if (choice === "bild") return hasImage ? "bild" : "tasse";
+/**
+ * „auto“ nimmt das zentrale Motiv der Teeart, falls hochgeladen, sonst die
+ * passende Zeichnung; ältere Sorten ohne Art nach dem Teeart-Text.
+ */
+export function resolveMotif(choice: string, tea: { kind?: string; teaType: string }, images: { own: boolean; kind: boolean }): MotifId {
+  if (choice === "bild") return images.own ? "bild" : "tasse";
   if (choice !== "auto" && choice in MOTIFS) return choice as MotifId;
-  const t = teaType.toLowerCase();
+  if (images.kind) return "art";
+  if (tea.kind && tea.kind in KIND_MOTIF) return KIND_MOTIF[tea.kind]!;
+  const t = tea.teaType.toLowerCase();
   if (/kräuter|kraeuter|minze|kamille|ingwer|rooibos|honeybush/.test(t)) return t.includes("rooibos") ? "kanne" : "kraeuter";
   if (/frucht|früchte|fruechte|beere/.test(t)) return "fruechte";
   return "tasse";
 }
+
+/** Zeichnung je Teeart, wenn kein zentrales Motiv hochgeladen ist. */
+const KIND_MOTIF: Record<string, MotifId> = {
+  fruechte: "fruechte",
+  kraeuter: "kraeuter",
+  schwarz: "tasse",
+  gruen: "tasse",
+  rooibos: "kanne",
+};
 
 /**
  * Punktring als fertiger Pfad. Eine Strichelung per stroke-dasharray zerlegt
@@ -138,10 +153,13 @@ function Fruits() {
   );
 }
 
-export function Motif({ id, imageSrc }: { id: MotifId; imageSrc?: string | null }) {
+export function Motif({ id, imageSrc, kindImageSrc }: { id: MotifId; imageSrc?: string | null; kindImageSrc?: string | null }) {
   if (id === "keins") return null;
   if (id === "bild" && imageSrc) {
     return <img className="tl-art-img" src={imageSrc} alt="" />;
+  }
+  if (id === "art" && kindImageSrc) {
+    return <img className="tl-art-img" src={kindImageSrc} alt="" />;
   }
   return (
     <svg viewBox="0 0 120 100" aria-hidden="true">

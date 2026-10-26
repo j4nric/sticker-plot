@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { chooseTitle, cleanLine, fold, joinLines, matchTeaType, nameFromFileName, similarity, snapColor, splitDescription } from "./interpret";
+import { chooseTitle, cleanLine, fold, joinLines, matchTeaKind, nameFromFileName, similarity, splitDescription, splitTypeFromBlock } from "./interpret";
 
 describe("Import-Auswertung", () => {
   it("leitet Namen aus Dateinamen ab", () => {
@@ -35,11 +35,22 @@ describe("Import-Auswertung", () => {
     expect(chooseTitle([], "").warning).toBeDefined();
   });
 
-  it("ordnet Teearten der bekannten Liste zu", () => {
-    expect(matchTeaType("GRUNER TEE")).toEqual({ teaType: "Grüner Tee", confidence: expect.any(Number) });
-    expect(matchTeaType("FRUCHTETEE").teaType).toBe("Früchtetee");
-    expect(matchTeaType("HONEYBUSH").teaType).toBe("Honeybush");
-    expect(matchTeaType("").teaType).toBe("");
+  it("ordnet Teearten den fünf Arten zu, auch zweizeilig und mit Lesefehlern", () => {
+    expect(matchTeaKind("GRUNER TEE")).toMatchObject({ kind: "gruen", flavored: false, teaType: "Grüntee" });
+    expect(matchTeaKind("AROMATISIERTER\nSCHWARZER TEE")).toMatchObject({ kind: "schwarz", flavored: true, teaType: "Aromatisierter Schwarztee" });
+    expect(matchTeaKind("AROMATISIERTER FRUCHTETEE")).toMatchObject({ kind: "fruechte", flavored: true });
+    expect(matchTeaKind("AR0MATISIERTER R00IBOS")).toMatchObject({ kind: "rooibos", flavored: true });
+    expect(matchTeaKind("KRAUTER TEE")).toMatchObject({ kind: "kraeuter" });
+    expect(matchTeaKind("HONEYBUSH").kind).toBe("");
+    expect(matchTeaKind("").teaType).toBe("");
+  });
+
+  it("trennt Teeart in Großbuchstaben von der Beschreibung", () => {
+    expect(splitTypeFromBlock("AROMATISIERTER\nGRÜNER TEE\n———\nEin feiner Grüntee mit\nKirsche.")).toEqual({ type: "AROMATISIERTER\nGRÜNER TEE", rest: "Ein feiner Grüntee mit\nKirsche." });
+    expect(splitTypeFromBlock("GRÜNER TEE\n\nEin Grüntee.")).toEqual({ type: "GRÜNER TEE", rest: "Ein Grüntee." });
+    expect(splitTypeFromBlock("Ein Grüntee ohne Teeart.")).toEqual({ type: "", rest: "Ein Grüntee ohne Teeart." });
+    // Reste des Zierrahmens darüber werden übersprungen
+    expect(splitTypeFromBlock("7 NE SC o0wI wi\nGRUNER TEE\nEin Grüntee mit Blatt.")).toEqual({ type: "GRUNER TEE", rest: "Ein Grüntee mit Blatt." });
   });
 
   it("fügt Zeilen zu Fließtext zusammen und löst Trennstriche", () => {
@@ -49,10 +60,5 @@ describe("Import-Auswertung", () => {
 
   it("trennt eine Zutatenliste aus der Beschreibung ab", () => {
     expect(splitDescription("Fruchtig und mild.\nZutaten: Apfel, Hibiskus")).toEqual({ description: "Fruchtig und mild.", ingredients: "Apfel, Hibiskus" });
-  });
-
-  it("rastet erkannte Farben auf Standardfarben ein", () => {
-    expect(snapColor("#62a05b")).toBe("#4f9a3f");
-    expect(snapColor("#123456")).toBe("#123456");
   });
 });

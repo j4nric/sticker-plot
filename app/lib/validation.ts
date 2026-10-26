@@ -2,6 +2,7 @@ import { z } from "zod";
 import { normalizeEan } from "~/label/codes";
 import { CALIBRATION_LIMITS, GEOMETRY_FIELDS, MAX_PRINT_LABELS, validateGeometry, type SheetGeometry } from "~/label/geometry";
 import { MOTIFS } from "~/label/motifs";
+import { TEA_KIND_KEYS, teaTypeLabel, type TeaKind } from "~/label/tea-types";
 import { FONTS, normalizeParams, PARAM_LIMITS, VARIANTS, type TemplateParams } from "~/label/template";
 import { normalizeParagraphs, unsupportedChars } from "~/label/text";
 import { germanDate, parseDecimal } from "./locale";
@@ -47,12 +48,21 @@ const optionalInt = (min: number, max: number, label: string) =>
     return n;
   });
 
-export const teaInput = z.object({
+/** Titel: Zeilenumbrüche erlaubt (erzwingen den Umbruch auf dem Etikett), keine Leerzeilen. */
+const titleText = z
+  .string()
+  .transform((s) => normalizeParagraphs(s).replace(/\n+/g, "\n"))
+  .pipe(z.string().max(80, "Titel: höchstens 80 Zeichen"))
+  .superRefine(printable("Titel"));
+
+export const teaInput = z
+  .object({
   name: text(80, "Name").pipe(z.string().min(1, "Bitte einen Namen eingeben")),
-  teaType: text(40, "Teeart"),
+  title: titleText,
+  kind: z.enum(TEA_KIND_KEYS as [TeaKind, ...TeaKind[]], { message: "Bitte eine Teeart wählen" }),
+  flavored: z.boolean(),
   description: text(1500, "Beschreibung", true),
   ingredients: text(1000, "Zutaten", true),
-  color: z.string().regex(/^#[0-9a-fA-F]{6}$/, "Ungültige Farbe").transform((s) => s.toLowerCase()),
   motif: z.enum(Object.keys(MOTIFS) as [string, ...string[]]).catch("auto"),
   templateId: z.coerce.number().int().positive().nullable().catch(null),
   brewAmount: text(30, "Menge").transform(normalizeBrewAmount),
@@ -70,7 +80,9 @@ export const teaInput = z.object({
     .pipe(z.union([z.literal(""), z.string().url("Link muss mit https:// beginnen").max(300).refine((u) => /^https?:\/\//.test(u), "Link muss mit https:// beginnen")])),
   price: text(30, "Preis"),
   shelfLifeMonths: optionalInt(1, 120, "Haltbarkeit"),
-});
+})
+  // Titel gleich Name heißt: kein eigener Titel; Teeart-Text folgt aus Art und Aroma
+  .transform((v) => ({ ...v, title: v.title === v.name ? "" : v.title, teaType: teaTypeLabel(v.kind, v.flavored) }));
 
 export type TeaInput = z.infer<typeof teaInput>;
 
@@ -78,10 +90,11 @@ export function readTeaForm(form: FormData) {
   const str = (k: string) => String(form.get(k) ?? "");
   const raw = {
     name: str("name"),
-    teaType: str("teaType"),
+    title: str("title"),
+    kind: str("kind"),
+    flavored: form.get("flavored") === "on" || form.get("flavored") === "true",
     description: str("description"),
     ingredients: str("ingredients"),
-    color: str("color"),
     motif: str("motif") || "auto",
     templateId: str("templateId") || null,
     brewAmount: str("brewAmount"),
@@ -205,7 +218,8 @@ export function readTemplateForm(form: FormData): { name: string; params: Templa
   const name = String(form.get("name") ?? "").trim();
   const errors: string[] = [];
   if (!name || name.length > 60) errors.push("Name: 1 bis 60 Zeichen.");
-  const num = (k: keyof typeof PARAM_LIMITS) => parseDecimal(form.get(k));
+  // fehlende Felder bekommen den Standardwert, nicht das Minimum
+  const num = (k: keyof typeof PARAM_LIMITS) => parseDecimal(form.get(k)) ?? undefined;
   const params = normalizeParams({
     variant: String(form.get("variant")) in VARIANTS ? form.get("variant") : undefined,
     titleFont: String(form.get("titleFont")) in FONTS ? form.get("titleFont") : undefined,
@@ -215,6 +229,10 @@ export function readTemplateForm(form: FormData): { name: string; params: Templa
     titleMin: num("titleMin"),
     bodyMax: num("bodyMax"),
     bodyMin: num("bodyMin"),
+    typeMax: num("typeMax"),
+    typeMin: num("typeMin"),
+    footerMax: num("footerMax"),
+    footerMin: num("footerMin"),
     artHeight: num("artHeight"),
     showTeaType: form.get("showTeaType") === "on",
     showBrew: form.get("showBrew") === "on",

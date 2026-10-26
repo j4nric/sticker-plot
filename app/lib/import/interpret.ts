@@ -2,16 +2,18 @@
  * Auswertung der Texterkennung: aus Rohtexten der alten Etiketten werden
  * saubere Felder. Ohne Abhängigkeiten, damit es gut testbar ist.
  */
-import { colorDistance } from "~/label/color";
-import { TEA_TYPES } from "~/label/tea-types";
+import { guessTeaKind, TEA_KIND_KEYS, TEA_KINDS, teaTypeLabel, type TeaKind } from "~/label/tea-types";
 import { titleCase } from "~/label/text";
 
 export interface ImportResult {
   name: string;
+  /** erkannte Teeart; leer, wenn nichts passt */
+  kind: TeaKind | "";
+  flavored: boolean;
+  /** Teeart wie gelesen bzw. als Etikett-Text */
   teaType: string;
   description: string;
   ingredients: string;
-  color: string;
   /** 0–100 je Feld */
   confidence: { name: number; teaType: number; description: number };
   warnings: string[];
@@ -100,17 +102,69 @@ export function chooseTitle(ocr: { text: string; confidence: number }[], fileGue
   return { name, confidence, warning: confidence < 70 ? "Name unsicher erkannt, bitte prüfen" : undefined };
 }
 
-/** Teeart mit der Liste bekannter Arten abgleichen (OCR verliert gern Umlaut-Punkte). */
-export function matchTeaType(raw: string): { teaType: string; confidence: number } {
-  const text = cleanLine(raw);
-  if (!text) return { teaType: "", confidence: 0 };
-  let best = { name: "", sim: 0 };
-  for (const t of TEA_TYPES) {
-    const sim = similarity(text, t.name);
-    if (sim > best.sim) best = { name: t.name, sim };
+/** Schreibweisen der Teearten auf alten Etiketten (OCR verliert gern Umlaut-Punkte). */
+const KIND_SPELLINGS: [TeaKind, string][] = [
+  ...TEA_KIND_KEYS.map((k) => [k, TEA_KINDS[k].name] as [TeaKind, string]),
+  ["gruen", "Grüner Tee"],
+  ["schwarz", "Schwarzer Tee"],
+  ["rooibos", "Rooibos"],
+  ["rooibos", "Rooibos Tee"],
+  ["fruechte", "Früchte Tee"],
+  ["kraeuter", "Kräuter Tee"],
+];
+
+/**
+ * Teeart mit den fünf Arten abgleichen, auch zweizeilig („AROMATISIERTER /
+ * GRÜNER TEE“) und mit Lesefehlern.
+ */
+export function matchTeaKind(raw: string): { kind: TeaKind | ""; flavored: boolean; teaType: string; confidence: number } {
+  const text = cleanLine(raw.replace(/\s*\n\s*/g, " "));
+  if (!text) return { kind: "", flavored: false, teaType: "", confidence: 0 };
+  const words = fold(text).split(" ");
+  const flavored = words.some((w) => similarity(w, "aromatisierter") >= 0.7);
+  const rest = words.filter((w) => similarity(w, "aromatisierter") < 0.7).join(" ");
+  const direct = guessTeaKind(fold(text));
+  if (direct) return { kind: direct.kind, flavored, teaType: teaTypeLabel(direct.kind, flavored), confidence: 95 };
+  let best = { kind: "" as TeaKind | "", sim: 0 };
+  for (const [kind, name] of KIND_SPELLINGS) {
+    const sim = similarity(rest, name);
+    if (sim > best.sim) best = { kind, sim };
   }
-  if (best.sim >= 0.75) return { teaType: best.name, confidence: Math.round(best.sim * 100) };
-  return { teaType: titleCase(text), confidence: 50 };
+  if (best.kind && best.sim >= 0.7) return { kind: best.kind, flavored, teaType: teaTypeLabel(best.kind, flavored), confidence: Math.round(best.sim * 100) };
+  return { kind: "", flavored, teaType: titleCase(text), confidence: 30 };
+}
+
+/**
+ * Teeart und Beschreibung aus einem gemeinsam gelesenen Block trennen: Die
+ * Teeart steht in Großbuchstaben über der Beschreibung (höchstens zwei
+ * Zeilen), die Beschreibung in normaler Schreibweise.
+ */
+export function splitTypeFromBlock(block: string): { type: string; rest: string } {
+  const lines = block.replace(/\r/g, "").split("\n");
+  const type: string[] = [];
+  let i = 0;
+  // Störzeilen vom Zierrahmen darüber („7 NE SC o0wI wi“): kurze Wortfetzen, Ziffern, Zeichen
+  const isNoise = (line: string) => {
+    const words = line.trim().split(/\s+/).filter(Boolean);
+    const letters = line.replace(/[^\p{L}]/gu, "").length;
+    const avg = words.length ? letters / words.length : 0;
+    return letters > 0 && (avg < 3 || letters / line.replace(/\s/g, "").length < 0.7);
+  };
+  while (i < Math.min(lines.length, 3) && isNoise(lines[i]!)) i++;
+  const start = i;
+  for (; i < lines.length; i++) {
+    const line = lines[i]!.trim();
+    const letters = line.replace(/[^\p{L}]/gu, "");
+    if (!letters) {
+      // Leerzeilen und Trennlinien vor oder zwischen der Teeart überspringen
+      if (type.length === 0 || i + 1 < lines.length) continue;
+      break;
+    }
+    const upper = letters.replace(/[^\p{Lu}]/gu, "").length / letters.length;
+    if (upper < 0.8 || letters.length < 3 || type.length === 2) break;
+    type.push(line);
+  }
+  return { type: type.join("\n"), rest: lines.slice(type.length ? i : start).join("\n").trim() };
 }
 
 /** Zeilen zu Fließtext: Trennstriche am Zeilenende auflösen, Leerzeilen als Absatz. */
@@ -140,14 +194,4 @@ export function splitDescription(raw: string): { description: string; ingredient
   const m = text.match(/\bZutaten\s*:\s*([\s\S]+)$/i);
   if (!m) return { description: text, ingredients: "" };
   return { description: text.slice(0, m.index).trim(), ingredients: m[1]!.trim() };
-}
-
-/** Erkannte Tassenfarbe: nahe an einer Standardfarbe → diese verwenden. */
-export function snapColor(hex: string): string {
-  let best = { color: hex, d: Infinity };
-  for (const t of TEA_TYPES) {
-    const d = colorDistance(hex, t.color);
-    if (d < best.d) best = { color: t.color, d };
-  }
-  return best.d < 90 ? best.color : hex.toLowerCase();
 }
