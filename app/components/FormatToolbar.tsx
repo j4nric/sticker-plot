@@ -44,7 +44,7 @@ export function FormatToolbar({ fieldRef, value, onChange }: { fieldRef: RefObje
           aria-label={b.title}
           onMouseDown={(e) => e.preventDefault()}
           onClick={() => apply(MARKUP[b.style])}
-          className={`btn-secondary size-7 p-0 text-sm ${b.className}`}
+          className={`btn-secondary size-12 p-0 text-lg ${b.className}`}
         >
           {b.label}
         </button>

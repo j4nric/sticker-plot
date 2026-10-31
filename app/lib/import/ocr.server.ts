@@ -11,9 +11,7 @@ import { createCanvas, type Canvas } from "@napi-rs/canvas";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import { createWorker, PSM, type Worker } from "tesseract.js";
-import { toHex } from "~/label/color";
-import { chooseTitle, matchTeaType, nameFromFileName, snapColor, splitDescription, type ImportResult } from "./interpret";
-import { DEFAULT_TEA_COLOR } from "~/label/tea-types";
+import { chooseTitle, matchTeaKind, nameFromFileName, splitDescription, splitTypeFromBlock, type ImportResult } from "./interpret";
 
 const DPI = 300;
 const mmToPx = (mm: number) => Math.round((mm / 25.4) * DPI);
@@ -24,11 +22,11 @@ const mmToPx = (mm: number) => Math.round((mm / 25.4) * DPI);
  */
 const OLD_LAYOUT = {
   label: { x: 0.5, y: 6.3, w: 45.5, h: 95.3 },
-  cup: [0.1, 0.05, 0.9, 0.33],
   titleTight: [0.2, 0.455, 0.8, 0.522],
   titleWide: [0.18, 0.445, 0.82, 0.53],
   type: [0.12, 0.585, 0.88, 0.65],
-  description: [0.08, 0.66, 0.92, 0.892],
+  /** Teeart (ein- oder zweizeilig) und Beschreibung zusammen */
+  typeAndDescription: [0.08, 0.58, 0.92, 0.892],
 } as const;
 
 type Box = readonly [number, number, number, number];
@@ -79,30 +77,6 @@ function band(label: Canvas, [x0, y0, x1, y1]: Box, scale = 2, threshold = 150):
   }
   ctx.putImageData(img, 0, 0);
   return c.toBuffer("image/png");
-}
-
-/** Mittlere Farbe der kräftigen Pixel im Bereich (Tasse). */
-function dominantColor(label: Canvas, [x0, y0, x1, y1]: Box): string | null {
-  const ctx = label.getContext("2d");
-  const d = ctx.getImageData(Math.round(x0 * label.width), Math.round(y0 * label.height), Math.round((x1 - x0) * label.width), Math.round((y1 - y0) * label.height)).data;
-  let r = 0;
-  let g = 0;
-  let b = 0;
-  let n = 0;
-  for (let i = 0; i < d.length; i += 4) {
-    const R = d[i]!;
-    const G = d[i + 1]!;
-    const B = d[i + 2]!;
-    const mx = Math.max(R, G, B);
-    const mn = Math.min(R, G, B);
-    if (mx > 60 && mx - mn > 0.35 * mx) {
-      r += R;
-      g += G;
-      b += B;
-      n++;
-    }
-  }
-  return n > 500 ? toHex([r / n, g / n, b / n]) : null;
 }
 
 // ---------------------------------------------------------------- Tesseract-Worker
@@ -162,25 +136,29 @@ export async function extractFromPdf(pdf: Buffer, fileName: string): Promise<Ext
 
   const fileNameGuess = nameFromFileName(fileName);
   // Drei unabhängige Läufe für den Titel (dekorative Schrift): die Mehrheit gewinnt
-  const [tight, wide, sharp, typeRaw, descRaw] = [
+  const [tight, wide, sharp, typeLine, block] = [
     await recognize(band(label, OLD_LAYOUT.titleTight), PSM.SINGLE_LINE),
     await recognize(band(label, OLD_LAYOUT.titleWide), PSM.SPARSE_TEXT),
     await recognize(band(label, OLD_LAYOUT.titleTight, 3, 120), PSM.SINGLE_LINE),
     await recognize(band(label, OLD_LAYOUT.type), PSM.SINGLE_LINE),
-    await recognize(band(label, OLD_LAYOUT.description), PSM.SINGLE_BLOCK),
+    await recognize(band(label, OLD_LAYOUT.typeAndDescription), PSM.SINGLE_BLOCK),
   ];
 
   const title = chooseTitle([tight, wide, sharp], fileNameGuess);
   if (title.warning) warnings.push(title.warning);
-  const type = matchTeaType(typeRaw.text);
-  if (!type.teaType) warnings.push("Keine Teeart erkannt");
+  // Teeart: Großbuchstaben-Zeilen über der Beschreibung (auch zweizeilig);
+  // passt das nicht, die einzeln gelesene Zeile nehmen
+  const split = splitTypeFromBlock(block.text);
+  const fromBlock = matchTeaKind(split.type);
+  const type = fromBlock.kind ? fromBlock : (() => {
+    const single = matchTeaKind(typeLine.text);
+    return single.kind ? single : fromBlock.teaType ? fromBlock : single;
+  })();
+  if (!type.kind) warnings.push(type.teaType ? `Teeart „${type.teaType}“ keiner der fünf Arten zugeordnet` : "Keine Teeart erkannt");
+  const descRaw = { text: split.rest, confidence: block.confidence };
   const { description, ingredients } = splitDescription(descRaw.text);
   if (!description) warnings.push("Keine Beschreibung erkannt");
   if (descRaw.confidence < 75 && description) warnings.push("Beschreibung unsicher erkannt, bitte prüfen");
-
-  const raw = dominantColor(label, OLD_LAYOUT.cup);
-  const color = raw ? snapColor(raw) : DEFAULT_TEA_COLOR;
-  if (!raw) warnings.push("Keine Tassenfarbe gefunden, Standardfarbe gesetzt");
 
   // Vorschau: Etikett auf ca. 360 px Breite verkleinert
   const pw = 360;
@@ -191,10 +169,11 @@ export async function extractFromPdf(pdf: Buffer, fileName: string): Promise<Ext
   return {
     result: {
       name: title.name,
+      kind: type.kind,
+      flavored: type.flavored,
       teaType: type.teaType,
       description,
       ingredients,
-      color,
       confidence: { name: title.confidence, teaType: type.confidence, description: descRaw.confidence },
       warnings,
       fileNameGuess,

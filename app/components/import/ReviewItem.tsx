@@ -1,6 +1,7 @@
 import { Link, useFetcher } from "react-router";
 import type { ImportItem } from "~/db/schema";
 import type { ImportResult } from "~/lib/import/interpret";
+import { guessTeaKind, TEA_KIND_KEYS, TEA_KINDS } from "~/label/tea-types";
 
 export interface ReviewItemData {
   id: number;
@@ -19,6 +20,8 @@ function Confidence({ value }: { value: number }) {
 export function ReviewItem({ item }: { item: ReviewItemData }) {
   const fetcher = useFetcher<{ error?: string }>();
   const r = item.result;
+  // ältere Einträge kennen nur den gelesenen Text
+  const kind = r ? (r.kind ? { kind: r.kind, flavored: r.flavored } : guessTeaKind(r.teaType ?? "")) : null;
   const busy = fetcher.state !== "idle";
   const err = fetcher.data?.error;
 
@@ -71,14 +74,21 @@ export function ReviewItem({ item }: { item: ReviewItemData }) {
               <label className="field-label flex items-center gap-2" htmlFor={`t-${item.id}`}>
                 Teeart <Confidence value={r.confidence.teaType} />
               </label>
-              <input id={`t-${item.id}`} name="teaType" defaultValue={r.teaType} maxLength={40} className="field-input" />
+              <select id={`t-${item.id}`} name="kind" defaultValue={kind?.kind ?? ""} required className="field-input">
+                <option value="" disabled>
+                  bitte wählen{r.teaType ? ` (gelesen: ${r.teaType})` : ""}
+                </option>
+                {TEA_KIND_KEYS.map((k) => (
+                  <option key={k} value={k}>
+                    {TEA_KINDS[k].name}
+                  </option>
+                ))}
+              </select>
             </div>
-            <div>
-              <label className="field-label" htmlFor={`c-${item.id}`}>
-                Farbe
-              </label>
-              <input id={`c-${item.id}`} name="color" type="color" defaultValue={r.color} className="h-10 w-14 rounded border border-stone-300 bg-white p-1" />
-            </div>
+            <label className="flex items-center gap-2 self-end pb-3 text-base font-semibold text-stone-700">
+              <input type="checkbox" name="flavored" defaultChecked={kind?.flavored ?? false} className="size-6" />
+              aromatisiert
+            </label>
           </div>
           <div>
             <label className="field-label flex items-center gap-2" htmlFor={`d-${item.id}`}>

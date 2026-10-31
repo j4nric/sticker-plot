@@ -1,12 +1,18 @@
 import { eq } from "drizzle-orm";
 import { db } from "~/db/db.server";
 import { settings } from "~/db/schema";
+import { isHexColor } from "~/label/color";
 import type { FooterSeparator, ShopInfo } from "~/label/Label";
+import { TEA_KIND_KEYS, TEA_KINDS, type TeaKind } from "~/label/tea-types";
 
 const SEPARATORS: FooterSeparator[] = ["blatt", "punkt", "strich", "keins"];
 
+/** Zentrale Gestaltung je Teeart: feste Farbe und optional ein eigenes Motiv-Bild. */
+export type KindSettings = Record<TeaKind, { color: string; imageId: number | null }>;
+
 export interface AppSettings {
   shop: Required<ShopInfo>;
+  kinds: KindSettings;
   /** block = PDF wird bei zu langem Text verweigert, warn = nur Hinweis */
   overflowPolicy: "block" | "warn";
 }
@@ -41,10 +47,31 @@ export function getSettings(): AppSettings {
       footerItalic: shop.footerItalic !== false,
     },
     overflowPolicy: read<string>("overflowPolicy", "block") === "warn" ? "warn" : "block",
+    kinds: getKindSettings(),
   };
 }
 
-export function saveSettings(s: AppSettings) {
+export function getKindSettings(): KindSettings {
+  const stored = read<Partial<Record<string, { color?: unknown; imageId?: unknown }>>>("kinds", {});
+  return Object.fromEntries(
+    TEA_KIND_KEYS.map((k) => {
+      const v = stored[k] ?? {};
+      return [
+        k,
+        {
+          color: typeof v.color === "string" && isHexColor(v.color) ? v.color.toLowerCase() : TEA_KINDS[k].color,
+          imageId: typeof v.imageId === "number" ? v.imageId : null,
+        },
+      ];
+    }),
+  ) as KindSettings;
+}
+
+export function saveKindSettings(kinds: KindSettings) {
+  write("kinds", kinds);
+}
+
+export function saveSettings(s: Omit<AppSettings, "kinds">) {
   write("shop", s.shop);
   write("overflowPolicy", s.overflowPolicy);
 }

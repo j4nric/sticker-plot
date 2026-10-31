@@ -5,6 +5,8 @@ import { DEFAULT_SHEET, labelBox, layoutSequence, nextFreeSlot, referencePoints,
 import { resolveMotif } from "./motifs";
 import { normalizeParams } from "./template";
 import { hyphenate, normalizeParagraphs, parseMarkup, titleCase, unsupportedChars } from "./text";
+import { guessTeaKind, teaTypeLabel } from "./tea-types";
+import { teaTypeLines } from "./Label";
 
 const stripMarkup = (t: string) => parseMarkup(t).map((s) => s.text).join("");
 
@@ -122,11 +124,27 @@ describe("Vorlagen und Motive", () => {
     expect(p.bodyMin).toBe(5.6);
   });
   it("wählt Motive nach Teeart", () => {
-    expect(resolveMotif("auto", "Kräutertee", false)).toBe("kraeuter");
-    expect(resolveMotif("auto", "Früchtetee", false)).toBe("fruechte");
-    expect(resolveMotif("auto", "Rooibos", false)).toBe("kanne");
-    expect(resolveMotif("auto", "Grüner Tee", false)).toBe("tasse");
-    expect(resolveMotif("bild", "Grüner Tee", false)).toBe("tasse");
-    expect(resolveMotif("bild", "Grüner Tee", true)).toBe("bild");
+    const none = { own: false, kind: false };
+    expect(resolveMotif("auto", { kind: "kraeuter", teaType: "" }, none)).toBe("kraeuter");
+    expect(resolveMotif("auto", { kind: "fruechte", teaType: "" }, none)).toBe("fruechte");
+    expect(resolveMotif("auto", { kind: "rooibos", teaType: "" }, none)).toBe("kanne");
+    expect(resolveMotif("auto", { kind: "gruen", teaType: "" }, none)).toBe("tasse");
+    expect(resolveMotif("auto", { teaType: "Früchtetee" }, none)).toBe("fruechte");
+    // zentrales Motiv der Teeart vor der Zeichnung, eigenes Bild nur auf Wunsch
+    expect(resolveMotif("auto", { kind: "gruen", teaType: "" }, { own: true, kind: true })).toBe("art");
+    expect(resolveMotif("bild", { kind: "gruen", teaType: "" }, none)).toBe("tasse");
+    expect(resolveMotif("bild", { kind: "gruen", teaType: "" }, { own: true, kind: true })).toBe("bild");
+    expect(resolveMotif("kanne", { kind: "gruen", teaType: "" }, { own: false, kind: true })).toBe("kanne");
+  });
+
+  it("kennt fünf Teearten, auch aus altem Text", () => {
+    expect(teaTypeLabel("schwarz", true)).toBe("Aromatisierter Schwarztee");
+    expect(teaTypeLabel("gruen", false)).toBe("Grüntee");
+    expect(guessTeaKind("Grüner Tee")).toEqual({ kind: "gruen", flavored: false });
+    expect(guessTeaKind("aromatisierter Früchte-Tee")).toEqual({ kind: "fruechte", flavored: true });
+    expect(guessTeaKind("Rooibos")).toEqual({ kind: "rooibos", flavored: false });
+    expect(guessTeaKind("Oolong")).toBeNull();
+    expect(teaTypeLines("Aromatisierter Schwarztee")).toEqual(["Aromatisierter", "Schwarztee"]);
+    expect(teaTypeLines("Grüntee")).toEqual(["Grüntee"]);
   });
 });

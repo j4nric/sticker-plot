@@ -68,14 +68,17 @@ describe.runIf(hasChromium)("PDF-Erzeugung", () => {
     expect(overflowing).toBe(1);
   });
 
-  it("bricht lange Teearten zweizeilig um statt abzuschneiden", async () => {
-    const t = { ...item, content: { ...tea, teaType: "Aromatisierter Schwarzer Tee mit Stücken" } };
-    const { overflowing } = await htmlToPdf(labelSheetsHtml({ items: [t], shop, calibration: NO_CALIBRATION, start: 1 }));
+  it("setzt aromatisierte und lange Teearten zweizeilig statt abzuschneiden", async () => {
+    const items = ["Aromatisierter Rooibostee", "Aromatisierter Schwarzer Tee mit Stücken", "Schwarzer Tee mit Stücken und Blüten"].map((teaType) => ({
+      ...item,
+      content: { ...tea, teaType },
+    }));
+    const { overflowing } = await htmlToPdf(labelSheetsHtml({ items, shop, calibration: NO_CALIBRATION, start: 1 }));
     expect(overflowing).toBe(0);
   });
 
   it("rendert alle Varianten, Codes und Druckangaben ohne Überlauf", async () => {
-    const variants = (["klassisch", "band", "minimal"] as const).map((variant) => ({
+    const variants = (["klassisch", "rahmenlos", "minimal"] as const).map((variant) => ({
       content: { ...tea, ean: "4006381333931", productUrl: "https://example.org/tee", price: "7,90 €", brewTemp: 80, brewTime: "3 Min.", organic: true },
       template: normalizeParams({ variant }),
     }));

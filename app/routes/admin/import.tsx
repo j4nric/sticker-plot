@@ -5,6 +5,8 @@ import { ReviewItem } from "~/components/import/ReviewItem";
 import { Notice } from "~/components/Notice";
 import { acceptImport } from "~/lib/import/accept.server";
 import { importTeasFromCsv, type CsvImportReport } from "~/lib/import/csv-import.server";
+import type { ImportResult } from "~/lib/import/interpret";
+import { guessTeaKind } from "~/label/tea-types";
 import { kickQueue } from "~/lib/import/queue.server";
 import { currentUser } from "~/lib/session.server";
 import { audit } from "~/models/audit.server";
@@ -37,10 +39,10 @@ export async function action({ request, context }: Route.ActionArgs) {
     case "accept": {
       const fields = {
         name: String(form.get("name") ?? ""),
-        teaType: String(form.get("teaType") ?? ""),
+        kind: String(form.get("kind") ?? "") as ImportResult["kind"],
+        flavored: form.get("flavored") === "on",
         description: String(form.get("description") ?? ""),
         ingredients: String(form.get("ingredients") ?? ""),
-        color: String(form.get("color") ?? ""),
       };
       const r = acceptImport(id, fields, { allowDuplicate: form.get("allowDuplicate") === "1" });
       if (!r.ok) return data<ActionResult>({ error: r.error, itemId: id }, { status: 400 });
@@ -56,7 +58,9 @@ export async function action({ request, context }: Route.ActionArgs) {
           skipped++;
           continue;
         }
-        const r = acceptImport(item.id, item.result);
+        // ältere Einträge kennen nur den gelesenen Text der Teeart
+        const guess = item.result.kind ? { kind: item.result.kind, flavored: item.result.flavored } : guessTeaKind(item.result.teaType ?? "");
+        const r = acceptImport(item.id, { ...item.result, kind: guess?.kind ?? "", flavored: guess?.flavored ?? false });
         if (r.ok) ok++;
         else skipped++;
       }
@@ -154,8 +158,8 @@ export default function Import({ loaderData, actionData }: Route.ComponentProps)
       <section className="card space-y-3">
         <h2 className="font-display text-lg tracking-wide uppercase">CSV oder Excel</h2>
         <p className="text-sm text-stone-700">
-          Tees als CSV exportieren, in Excel bearbeiten und wieder importieren. Erste Zeile mit Spaltennamen, mindestens „name“. Weitere Spalten: teeart,
-          beschreibung, zutaten, farbe, motiv, vorlage, menge, temperatur, ziehzeit, bio, ean, link, preis, haltbarkeit_monate.
+          Tees als CSV exportieren, in Excel bearbeiten und wieder importieren. Erste Zeile mit Spaltennamen, mindestens „name“. Weitere Spalten: titel, teeart (z. B. „Aromatisierter Schwarztee“),
+          beschreibung, zutaten, motiv, vorlage, menge, temperatur, ziehzeit, bio, ean, link, preis, haltbarkeit_monate.
         </p>
         <a href="/verwaltung/export.csv" className="btn-secondary">
           Alle Tees als CSV herunterladen

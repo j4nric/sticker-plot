@@ -2,14 +2,14 @@ import { parseCsv, unescapeCsvText } from "~/lib/csv";
 import { readTeaForm } from "~/lib/validation";
 import { createTea, findTeaByName, updateTea } from "~/models/tea.server";
 import { listTemplates } from "~/models/template.server";
-import { DEFAULT_TEA_COLOR } from "~/label/tea-types";
+import { guessTeaKind } from "~/label/tea-types";
 
 export const CSV_COLUMNS = [
   "name",
+  "titel",
   "teeart",
   "beschreibung",
   "zutaten",
-  "farbe",
   "motiv",
   "vorlage",
   "menge",
@@ -25,7 +25,7 @@ export const CSV_COLUMNS = [
 
 /** Spaltennamen, die zusätzlich verstanden werden. */
 const ALIASES: Record<string, (typeof CSV_COLUMNS)[number]> = {
-  titel: "name",
+  title: "titel",
   sorte: "name",
   teesorte: "name",
   art: "teeart",
@@ -34,8 +34,6 @@ const ALIASES: Record<string, (typeof CSV_COLUMNS)[number]> = {
   description: "beschreibung",
   text: "beschreibung",
   ingredients: "zutaten",
-  color: "farbe",
-  colour: "farbe",
   menge_pro_tasse: "menge",
   temp: "temperatur",
   "temperatur_c": "temperatur",
@@ -90,13 +88,14 @@ export function importTeasFromCsv(text: string, mode: "create" | "upsert"): CsvI
       return;
     }
     const form = new FormData();
-    const color = get("farbe") || existing?.color || DEFAULT_TEA_COLOR;
+    // Teeart als Text, z. B. „Aromatisierter Schwarztee“ oder „Grüner Tee“
+    const kind = guessTeaKind(get("teeart")) ?? (existing ? guessTeaKind(existing.teaType) : null);
     const entries: Record<string, string> = {
       name,
-      teaType: get("teeart"),
+      title: get("titel") || existing?.title || "",
+      kind: kind?.kind ?? "",
       description: get("beschreibung"),
       ingredients: get("zutaten"),
-      color: color.startsWith("#") ? color : `#${color}`,
       motif: get("motiv") || "auto",
       templateId: String(templates.get(get("vorlage").toLowerCase()) ?? ""),
       brewAmount: get("menge"),
@@ -109,9 +108,11 @@ export function importTeasFromCsv(text: string, mode: "create" | "upsert"): CsvI
     };
     for (const [k, v] of Object.entries(entries)) form.set(k, v);
     if (yes(get("bio"))) form.set("organic", "on");
+    if (kind?.flavored || yes(get("aromatisiert"))) form.set("flavored", "on");
     const parsed = readTeaForm(form);
     if (!parsed.ok) {
-      report.errors.push({ row: rowNo, name, message: Object.values(parsed.errors).join(" ") });
+      const message = parsed.errors.kind && !kind ? `Teeart „${get("teeart")}“ nicht erkannt (Früchtetee, Kräutertee, Schwarztee, Grüntee oder Rooibostee).` : Object.values(parsed.errors).join(" ");
+      report.errors.push({ row: rowNo, name, message });
       return;
     }
     if (existing) {

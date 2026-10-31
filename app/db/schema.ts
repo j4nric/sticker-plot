@@ -34,7 +34,14 @@ export const templates = sqliteTable("templates", {
 /** Teesorten mit allen Texten, die auf das Etikett kommen. */
 export const teas = sqliteTable("teas", {
   id: integer("id").primaryKey({ autoIncrement: true }),
+  /** Name in der App (Liste, Suche); kann sich vom Titel auf dem Etikett unterscheiden */
   name: text("name").notNull(),
+  /** Titel auf dem Etikett; leer = Name */
+  title: text("title").notNull().default(""),
+  /** eine der fünf Teearten (TEA_KINDS); leer nur bei alten, nicht zuordenbaren Sorten */
+  kind: text("kind").notNull().default(""),
+  flavored: integer("flavored", { mode: "boolean" }).notNull().default(false),
+  /** Teeart als Text auf dem Etikett, aus kind und flavored abgeleitet */
   teaType: text("tea_type").notNull().default(""),
   description: text("description").notNull().default(""),
   ingredients: text("ingredients").notNull().default(""),

@@ -7,6 +7,10 @@ import "./label/label.css";
 import "./app.css";
 
 export const links: Route.LinksFunction = () => [
+  // als App auf dem Home-Bildschirm (iPad: Teilen → Zum Home-Bildschirm)
+  { rel: "manifest", href: "/manifest.webmanifest" },
+  { rel: "apple-touch-icon", href: "/icons/apple-touch-icon.png" },
+  { rel: "icon", type: "image/png", href: "/icons/favicon-64.png" },
   { rel: "preload", href: "/fonts/oswald-latin-500-normal.woff2", as: "font", type: "font/woff2", crossOrigin: "anonymous" },
   { rel: "preload", href: "/fonts/source-serif-4-latin-400-normal.woff2", as: "font", type: "font/woff2", crossOrigin: "anonymous" },
 ];
@@ -16,7 +20,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
     <html lang="de">
       <head>
         <meta charSet="utf-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+        <meta name="theme-color" content="#284f21" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-title" content="Etiketten" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <Meta />
         <Links />
         {/* Gleiche Schriften wie im PDF */}

@@ -44,7 +44,7 @@ export const LabelPreviewPanel = memo(function LabelPreviewPanel({
   const scale =
     view === "label"
       ? Math.min(1.8, 330 / ((format.labelWidth * 96) / 25.4), 640 / ((format.labelHeight * 96) / 25.4))
-      : Math.min(0.42, 470 / ((format.pageWidth * 96) / 25.4));
+      : Math.min(0.42, 380 / ((format.pageWidth * 96) / 25.4));
 
   const onFit = (r: FitReport) => {
     setReport(r);

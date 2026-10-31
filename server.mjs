@@ -24,6 +24,7 @@ app.use(morgan("tiny"));
 const MB = 1024 * 1024;
 const BODY_LIMITS = [
   [/^\/tees\/\d+\/bild$/, 4 * MB],
+  [/^\/verwaltung\/einstellungen$/, 4 * MB],
   [/^\/verwaltung\/import\/status$/, 41 * MB],
   [/^\/verwaltung\/import$/, 11 * MB],
   [/^\/verwaltung\/sicherung$/, 520 * MB],

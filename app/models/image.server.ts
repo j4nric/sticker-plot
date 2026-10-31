@@ -1,6 +1,7 @@
 import { and, eq, isNotNull, notInArray } from "drizzle-orm";
 import { db } from "~/db/db.server";
 import { images, importItems, teas } from "~/db/schema";
+import { getKindSettings } from "./settings.server";
 
 export const IMAGE_TYPES = ["image/png", "image/jpeg", "image/webp", "image/svg+xml"] as const;
 export const MAX_IMAGE_BYTES = 3 * 1024 * 1024;
@@ -43,9 +44,13 @@ export function getImage(id: number) {
 export function deleteUnusedImages(): number {
   const usedByTeas = db().select({ id: teas.imageId }).from(teas).where(isNotNull(teas.imageId));
   const usedByImports = db().select({ id: importItems.previewImageId }).from(importItems).where(isNotNull(importItems.previewImageId));
+  // Motive der Teearten liegen in den Einstellungen
+  const usedBySettings = Object.values(getKindSettings())
+    .map((k) => k.imageId)
+    .filter((id): id is number => id != null);
   return db()
     .delete(images)
-    .where(and(notInArray(images.id, usedByTeas), notInArray(images.id, usedByImports)))
+    .where(and(notInArray(images.id, usedByTeas), notInArray(images.id, usedByImports), usedBySettings.length ? notInArray(images.id, usedBySettings) : undefined))
     .run().changes;
 }
 

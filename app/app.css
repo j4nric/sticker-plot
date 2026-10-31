@@ -15,8 +15,37 @@ body {
   @apply bg-stone-100 text-stone-900;
 }
 
+/*
+ * Bedienung vor allem auf dem iPad im Querformat: größere Grundschrift (alle
+ * rem-Größen wachsen mit), große Tippflächen, kein Doppeltipp-Zoom.
+ */
+@media (min-width: 768px) {
+  html {
+    font-size: 18px;
+  }
+}
+html {
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+button,
+a,
+select,
+input,
+textarea,
+summary {
+  touch-action: manipulation;
+}
+input[type="checkbox"],
+input[type="radio"] {
+  width: 1.4rem;
+  height: 1.4rem;
+  flex: none;
+  accent-color: var(--color-brand-700);
+}
+
 @utility btn {
-  @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50;
+  @apply inline-flex min-h-12 items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-base font-semibold transition-colors select-none disabled:cursor-not-allowed disabled:opacity-50;
 }
 
 @utility btn-primary {
@@ -32,19 +61,20 @@ body {
 }
 
 @utility field-label {
-  @apply mb-1 block text-sm font-semibold text-stone-700;
+  @apply mb-1.5 block text-base font-semibold text-stone-700;
 }
 
+/* 16 px und mehr verhindert das automatische Hineinzoomen in Felder auf dem iPad */
 @utility field-input {
-  @apply block w-full rounded-lg border border-stone-300 bg-white px-3 py-2 text-base shadow-sm outline-none focus:border-brand-600 focus:ring-2 focus:ring-brand-100;
+  @apply block min-h-12 w-full rounded-xl border border-stone-300 bg-white px-4 py-2.5 text-lg shadow-sm outline-none focus:border-brand-600 focus:ring-2 focus:ring-brand-100;
 }
 
 @utility field-error {
-  @apply mt-1 text-sm text-red-700;
+  @apply mt-1 text-base text-red-700;
 }
 
 @utility field-hint {
-  @apply mt-1 text-xs text-stone-500;
+  @apply mt-1 text-sm text-stone-500;
 }
 
 @utility card {

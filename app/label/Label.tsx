@@ -8,14 +8,19 @@ import { hyphenate, normalizeParagraphs, parseMarkup } from "./text";
 
 /** Alles, was zu einer Sorte auf das Etikett kommt. */
 export interface LabelContent {
+  /** Titel auf dem Etikett; Zeilenumbrüche erzwingen einen Umbruch */
   name: string;
   teaType: string;
+  /** Schlüssel der Teeart (für Motiv und Farbe), leer bei alten Sorten */
+  kind?: string;
   description: string;
   ingredients: string;
   color: string;
   motif?: string;
   /** URL oder data:-URL des eigenen Bildes */
   imageSrc?: string | null;
+  /** zentrales Motiv der Teeart (Einstellungen) */
+  kindImageSrc?: string | null;
   brewAmount?: string;
   brewTemp?: number | null;
   brewTime?: string;
@@ -58,13 +63,21 @@ export interface ShopInfo {
   footerItalic?: boolean;
 }
 
-/** Grenzen für einzeilige Felder in pt (Titel und Text kommen aus der Vorlage). */
+/** Grenzen für einzeilige Felder in pt (Titel, Teeart, Text und Fußzeile kommen aus der Vorlage). */
 export const LINE_FIT = {
-  type: { max: 6.4, min: 4.6 },
   brew: { max: 6, min: 4.6 },
   meta: { max: 5.6, min: 4.4 },
-  footer: { max: 5.6, min: 4.2 },
 } as const;
+
+/**
+ * Teeart in Zeilen: „Aromatisierter Schwarztee“ immer zweizeilig, damit sie
+ * groß bleibt; sonst eine Zeile.
+ */
+export function teaTypeLines(teaType: string): string[] {
+  const t = teaType.trim().replace(/\s+/g, " ");
+  const m = t.match(/^(aromatisierte[rs]?)\s+(.+)$/i);
+  return m ? [m[1]!, m[2]!] : [t];
+}
 
 /** Text mit *fett*, _kursiv_ und ++unterstrichen++; optional mit Silbentrennung. */
 export function RichText({ text, hyphens = false }: { text: string; hyphens?: boolean }) {
@@ -134,7 +147,8 @@ export function Label({
   const t = template;
   const color = validColor(data.color);
   const box = labelBox(size);
-  const motif = resolveMotif(data.motif ?? "auto", data.teaType, Boolean(data.imageSrc));
+  const motif = resolveMotif(data.motif ?? "auto", data, { own: Boolean(data.imageSrc), kind: Boolean(data.kindImageSrc) });
+  const typeLines = teaTypeLines(data.teaType);
   const showArt = t.artHeight > 0 && motif !== "keins";
   const ean = data.ean ? normalizeEan(data.ean) : "";
   const showCodes = t.showCodes && Boolean(ean || data.productUrl || data.price);
@@ -168,7 +182,7 @@ export function Label({
         <div className="tl-content">
           {showArt ? (
             <div className="tl-art">
-              <Motif id={motif} imageSrc={data.imageSrc} />
+              <Motif id={motif} imageSrc={data.imageSrc} kindImageSrc={data.kindImageSrc} />
             </div>
           ) : (
             <div className="tl-art-none" />
@@ -176,9 +190,17 @@ export function Label({
           <Fit className={`tl-title ${fontClass(t.titleFont)}`} max={t.titleMax} min={t.titleMin}>
             <span>{hyphenate(data.name.trim() || "Teename", 9)}</span>
           </Fit>
-          {t.showTeaType && data.teaType.trim() ? (
-            <Fit className={`tl-line tl-type${data.teaType.trim().length > 20 ? " tl-wrap2" : ""}`} {...LINE_FIT.type}>
-              {data.teaType.trim()}
+          {t.showTeaType && typeLines[0] ? (
+            <Fit
+              className={`tl-line tl-type${typeLines.length > 1 ? " tl-wrap2 tl-type-lines" : typeLines[0].length > 20 ? " tl-wrap2" : ""}`}
+              max={t.typeMax}
+              min={t.typeMin}
+            >
+              {typeLines.map((line, i) => (
+                <span key={i} className="tl-type-text">
+                  {line}
+                </span>
+              ))}
             </Fit>
           ) : null}
           {t.showBrew && brew.length ? (
@@ -216,7 +238,7 @@ export function Label({
             </div>
           ) : null}
           {t.showFooter && (shop.name || shop.url || shop.address) ? (
-            <Fit className={`tl-line tl-footer${shop.footerItalic === false ? " tl-footer-upright" : ""}`} {...LINE_FIT.footer}>
+            <Fit className={`tl-line tl-footer${shop.footerItalic === false ? " tl-footer-upright" : ""}`} max={t.footerMax} min={t.footerMin}>
               {shop.name || shop.url ? (
                 <div className="tl-fline">
                   {shop.name ? (

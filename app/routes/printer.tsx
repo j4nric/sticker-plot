@@ -18,6 +18,7 @@ import {
 import { formatNumber, formatSigned } from "~/lib/locale";
 import { parseId } from "~/lib/params";
 import { Notice } from "~/components/Notice";
+import { PdfDialog, type PdfRequest } from "~/components/PdfDialog";
 import { useRememberedFormat } from "~/components/useDeviceChoice";
 import type { Route } from "./+types/printer";
 
@@ -122,7 +123,9 @@ export default function PrinterPage({ loaderData, actionData }: Route.ComponentP
   // Nach dem Speichern die Eingabe ausblenden, damit dieselben Werte nicht ein zweites Mal verrechnet werden
   const [reopenedFor, setReopenedFor] = useState<ActionResult | undefined>();
   const awaitingTestSheet = Boolean(actionData?.calibrated) && reopenedFor !== actionData;
-  const testSheetUrl = `/drucker/${printer.id}/testbogen.pdf?format=${format.id}`;
+  const [pdf, setPdf] = useState<PdfRequest | null>(null);
+  const openTestSheet = () =>
+    setPdf({ url: `/drucker/${printer.id}/testbogen.pdf?format=${format.id}`, fileName: "testbogen.pdf", kind: "preview", title: "Testbogen" });
   const navigation = useNavigation();
   const busy = navigation.state !== "idle";
   const errors = actionData?.errors ?? {};
@@ -167,9 +170,9 @@ export default function PrinterPage({ loaderData, actionData }: Route.ComponentP
               </select>
             </div>
           ) : null}
-          <a href={testSheetUrl} target="_blank" rel="noreferrer" className="btn-primary">
-            Testbogen als PDF öffnen
-          </a>
+          <button type="button" onClick={openTestSheet} className="btn-primary">
+            Testbogen öffnen
+          </button>
           <div className="rounded-lg bg-stone-50 p-3 text-sm text-stone-700">
             <p className="font-semibold">Aktuelle Korrektur</p>
             <p>
@@ -197,9 +200,9 @@ export default function PrinterPage({ loaderData, actionData }: Route.ComponentP
               </p>
               <p>Jetzt einen neuen Testbogen drucken. Sitzen beide Kreuze auf den Ecken, ist der Drucker fertig.</p>
               <div className="flex flex-wrap gap-3">
-                <a href={testSheetUrl} target="_blank" rel="noreferrer" className="btn-primary">
+                <button type="button" onClick={openTestSheet} className="btn-primary">
                   Neuen Testbogen öffnen
-                </a>
+                </button>
                 <button type="button" className="btn-secondary" onClick={() => setReopenedFor(actionData)}>
                   Werte vom neuen Testbogen eintragen
                 </button>
@@ -292,6 +295,7 @@ export default function PrinterPage({ loaderData, actionData }: Route.ComponentP
           {errors.delete ? <p className="field-error">{errors.delete}</p> : null}
         </div>
       </section>
+      <PdfDialog request={pdf} onClose={() => setPdf(null)} />
     </div>
   );
 }

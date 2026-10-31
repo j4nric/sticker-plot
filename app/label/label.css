@@ -130,7 +130,8 @@
   hyphens: manual;
 }
 .tl-upper .tl-title { text-transform: uppercase; }
-.tl-title > span { display: block; max-width: 100%; }
+/* Zeilenumbrüche im Titel erzwingen einen Umbruch */
+.tl-title > span { display: block; max-width: 100%; white-space: pre-line; }
 .tl-title.tl-serif, .tl-title.tl-playfair { font-weight: 600; letter-spacing: 0.01em; line-height: 1.08; }
 
 /* einzeilige Felder: werden bei Platzmangel verkleinert statt abgeschnitten */
@@ -141,17 +142,21 @@
 }
 
 .tl-type {
+  --type-ls: 0.16em;
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 1.6mm;
   margin-top: 0.6mm;
   font-weight: 600;
   font-size: 6.4pt;
   line-height: 1.15;
-  letter-spacing: 0.16em;
+  letter-spacing: var(--type-ls);
   text-transform: uppercase;
   color: var(--tea-ink);
 }
+/* Laufweite steht auch hinter dem letzten Buchstaben: ausgleichen, sonst sitzt der Text links der Mitte */
+.tl-type-text { margin-right: calc(-1 * var(--type-ls)); }
 .tl-type::before, .tl-type::after {
   content: "";
   flex: 1 0 1.5mm;
@@ -165,7 +170,11 @@
   max-height: 2.45em;
   line-height: 1.2;
 }
-.tl-type.tl-wrap2 { display: block; letter-spacing: 0.08em; }
+.tl-type.tl-wrap2 { --type-ls: 0.1em; display: block; line-height: 1.15; max-height: 2.4em; }
+/* als Block: Ausgleich der Laufweite über einen Innenabstand links (macht den Block nicht breiter) */
+.tl-type.tl-wrap2 .tl-type-text { display: block; margin-right: 0; padding-left: var(--type-ls); }
+/* fest zweizeilig („Aromatisierter“ / Art): jede Zeile bleibt eine Zeile, die Schrift schrumpft */
+.tl-type.tl-type-lines .tl-type-text { white-space: nowrap; }
 .tl-type.tl-wrap2::before, .tl-type.tl-wrap2::after { display: none; }
 
 .tl-brew {
@@ -188,8 +197,8 @@
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  /* bei Überlauf bleibt der Anfang sichtbar */
-  justify-content: safe center;
+  /* oben beginnen: kein Leerraum zwischen Teeart und Beschreibung */
+  justify-content: flex-start;
   gap: 0.45em;
   font-size: 7.4pt;
   line-height: 1.3;
@@ -241,41 +250,26 @@
   color: #444;
 }
 .tl-footer .tl-fline { display: flex; align-items: center; justify-content: center; gap: 0.9mm; }
-.tl-footer svg { width: 2.2mm; height: 2.2mm; flex: none; }
+/* das Blatt sitzt optisch tiefer als die Schrift: etwas anheben */
+.tl-footer svg { width: 2.2mm; height: 2.2mm; flex: none; position: relative; top: -0.3mm; }
 .tl-footer .tl-c-leaf { fill: var(--tea); opacity: 1; }
-.tl-footer .tl-addr { font-size: 0.9em; }
+/* zweite Zeile darf bei langem Text umbrechen, statt die Schrift zu klein zu machen */
+.tl-footer .tl-addr { font-size: 0.9em; white-space: normal; }
 .tl-footer .tl-sep { color: var(--line); font-style: normal; }
 .tl-footer .tl-sep-gap { display: inline-block; width: 1.2mm; }
 .tl-footer-upright { font-style: normal; }
 .tl-footer .tl-b { color: inherit; }
 
-/* ---------- Variante „band“ ---------- */
-.tl-v-band .tl-frame { display: none; }
-.tl-v-band .tl-content { inset: 0; padding: 0 3.6mm 0; }
-.tl-v-band .tl-art {
-  margin: 0 -3.6mm;
-  height: calc(var(--art-h) + 6mm);
-  padding-top: 3mm;
-  background: var(--tea-light);
-  border-bottom: 0.5mm solid var(--tea-ink);
-}
-.tl-v-band .tl-c-bg, .tl-v-band .tl-c-ring, .tl-v-band .tl-c-dots { display: none; }
-.tl-v-band .tl-art-none { height: 4mm; padding: 0; }
-.tl-v-band .tl-footer {
-  margin: 1.6mm -3.6mm 0;
-  padding: 1.8mm 2mm 2.2mm;
-  border-top: 0;
-  background: var(--tea-ink);
-  color: #fff;
-}
-.tl-v-band .tl-footer .tl-c-leaf { fill: #fff; }
+/* ---------- Variante „rahmenlos“ ---------- */
+.tl-v-rahmenlos .tl-frame { display: none; }
 
 /* ---------- Variante „minimal“ ---------- */
 .tl-v-minimal .tl-frame { border-width: 0.15mm; border-color: var(--line); }
 .tl-v-minimal .tl-frame::after { display: none; }
 .tl-v-minimal .tl-c-bg, .tl-v-minimal .tl-c-ring { display: none; }
 .tl-v-minimal .tl-type::before, .tl-v-minimal .tl-type::after { display: none; }
-.tl-v-minimal .tl-type { letter-spacing: 0.22em; font-weight: 400; }
+.tl-v-minimal .tl-type { --type-ls: 0.22em; font-weight: 400; }
+.tl-v-minimal .tl-type.tl-wrap2 { --type-ls: 0.14em; }
 .tl-v-minimal .tl-footer { border-top-style: dotted; }
 
 /* Hinweis in der Vorschau, wenn Text nicht passt (wird im PDF nicht gesetzt) */

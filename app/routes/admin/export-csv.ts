@@ -6,7 +6,6 @@ import { allTeas } from "~/models/tea.server";
 import { listTemplates } from "~/models/template.server";
 import type { Route } from "./+types/export-csv";
 
-
 export function loader({ context }: Route.LoaderArgs) {
   const user = currentUser(context);
   const templates = new Map(listTemplates().map((t) => [t.id, t.name]));
@@ -15,10 +14,10 @@ export function loader({ context }: Route.LoaderArgs) {
     [...CSV_COLUMNS],
     ...teas.map((t) => [
       t.name,
+      t.title,
       t.teaType,
       t.description,
       t.ingredients,
-      t.color,
       t.motif,
       t.templateId ? (templates.get(t.templateId) ?? "") : "",
       t.brewAmount,
