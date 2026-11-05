@@ -38,6 +38,11 @@ describe("PDF-HTML", () => {
     expect(html.match(/data-label-ref="1"/g)).toHaveLength(5);
   });
 
+  it("zeichnet ohne Teeart einen durchgehenden Strich", () => {
+    const html = labelSheetsHtml({ items: [{ ...item, content: { ...tea, teaType: "" } }], shop, calibration: NO_CALIBRATION, start: 1 });
+    expect(html).toContain("tl-type-none");
+  });
+
   it("bettet nur die benötigten Schriften ein", () => {
     const plain = labelSheetsHtml({ items: many(1), shop, calibration: NO_CALIBRATION, start: 1 });
     expect(plain).not.toContain("Playfair Display");

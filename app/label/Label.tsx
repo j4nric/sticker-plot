@@ -202,6 +202,8 @@ export function Label({
                 </span>
               ))}
             </Fit>
+          ) : t.showTeaType ? (
+            <div className="tl-type tl-type-none" aria-hidden="true" />
           ) : null}
           {t.showBrew && brew.length ? (
             <Fit className="tl-line tl-brew" {...LINE_FIT.brew}>

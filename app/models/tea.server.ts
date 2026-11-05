@@ -3,7 +3,7 @@ import { db } from "~/db/db.server";
 import { printJobs, teas, type Tea } from "~/db/schema";
 import { deleteUnusedImages } from "./image.server";
 import type { LabelContent } from "~/label/Label";
-import { isTeaKind } from "~/label/tea-types";
+import { isTeaKind, NO_TEA_KIND } from "~/label/tea-types";
 import type { TeaSort } from "~/lib/tea-sort";
 import type { KindSettings } from "./settings.server";
 import type { TeaInput } from "~/lib/validation";
@@ -53,7 +53,7 @@ function teaOrder(sort: TeaSort, lastPrintedAt: unknown) {
     case "gedruckt":
       return [sql`${lastPrintedAt} is null`, sql`${lastPrintedAt} desc`, byName];
     case "art":
-      return [sql`${teas.kind} = ''`, teas.kind, teas.flavored, byName];
+      return [sql`${teas.kind} in ('', ${NO_TEA_KIND})`, teas.kind, teas.flavored, byName];
     default:
       return [byName];
   }

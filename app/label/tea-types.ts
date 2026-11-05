@@ -15,6 +15,9 @@ export const TEA_KIND_KEYS = Object.keys(TEA_KINDS) as TeaKind[];
 
 export const DEFAULT_TEA_COLOR = TEA_KINDS.gruen.color;
 
+/** bewusst ohne Teeart: auf dem Etikett steht nur ein durchgehender Strich */
+export const NO_TEA_KIND = "keine";
+
 export const isTeaKind = (v: unknown): v is TeaKind => typeof v === "string" && v in TEA_KINDS;
 
 /** Text auf dem Etikett, z. B. „Aromatisierter Schwarztee“. */

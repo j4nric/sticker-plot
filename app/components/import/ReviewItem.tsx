@@ -1,7 +1,7 @@
 import { Link, useFetcher } from "react-router";
 import type { ImportItem } from "~/db/schema";
 import type { ImportResult } from "~/lib/import/interpret";
-import { guessTeaKind, TEA_KIND_KEYS, TEA_KINDS } from "~/label/tea-types";
+import { guessTeaKind, NO_TEA_KIND, TEA_KIND_KEYS, TEA_KINDS } from "~/label/tea-types";
 
 export interface ReviewItemData {
   id: number;
@@ -83,6 +83,7 @@ export function ReviewItem({ item }: { item: ReviewItemData }) {
                     {TEA_KINDS[k].name}
                   </option>
                 ))}
+                <option value={NO_TEA_KIND}>Ohne Teeart</option>
               </select>
             </div>
             <label className="flex items-center gap-2 self-end pb-3 text-base font-semibold text-stone-700">

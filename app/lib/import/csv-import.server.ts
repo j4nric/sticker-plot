@@ -2,7 +2,7 @@ import { parseCsv, unescapeCsvText } from "~/lib/csv";
 import { readTeaForm } from "~/lib/validation";
 import { createTea, findTeaByName, updateTea } from "~/models/tea.server";
 import { listTemplates } from "~/models/template.server";
-import { guessTeaKind } from "~/label/tea-types";
+import { guessTeaKind, NO_TEA_KIND } from "~/label/tea-types";
 
 export const CSV_COLUMNS = [
   "name",
@@ -89,11 +89,12 @@ export function importTeasFromCsv(text: string, mode: "create" | "upsert"): CsvI
     }
     const form = new FormData();
     // Teeart als Text, z. B. „Aromatisierter Schwarztee“ oder „Grüner Tee“
-    const kind = guessTeaKind(get("teeart")) ?? (existing ? guessTeaKind(existing.teaType) : null);
+    // leere Spalte heißt „ohne Teeart“, außer der Tee hat schon eine
+    const kind = get("teeart") ? guessTeaKind(get("teeart")) : existing ? guessTeaKind(existing.teaType) : null;
     const entries: Record<string, string> = {
       name,
       title: get("titel") || existing?.title || "",
-      kind: kind?.kind ?? "",
+      kind: kind?.kind ?? (get("teeart") ? "" : NO_TEA_KIND),
       description: get("beschreibung"),
       ingredients: get("zutaten"),
       motif: get("motiv") || "auto",
