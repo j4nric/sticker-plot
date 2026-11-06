@@ -4,7 +4,7 @@ import { validColor } from "~/label/color";
 import type { PrintLayout, SheetGeometry } from "~/label/geometry";
 import type { LabelContent, ShopInfo } from "~/label/Label";
 import { MOTIFS } from "~/label/motifs";
-import { isTeaKind, TEA_KIND_KEYS, TEA_KINDS, teaTypeLabel } from "~/label/tea-types";
+import { isTeaKind, NO_TEA_KIND, TEA_KIND_KEYS, TEA_KINDS, teaTypeLabel } from "~/label/tea-types";
 import type { TemplateParams } from "~/label/template";
 import { unsupportedChars } from "~/label/text";
 import { FormatToolbar } from "./FormatToolbar";
@@ -116,7 +116,7 @@ export function TeaEditor({
     () => ({
       ...values,
       name: values.title.trim() || values.name,
-      teaType: kind ? teaTypeLabel(kind, values.flavored) : (legacyTeaType ?? ""),
+      teaType: kind ? teaTypeLabel(kind, values.flavored) : values.kind === NO_TEA_KIND ? "" : (legacyTeaType ?? ""),
       color: validColor(kind ? (kinds[kind]?.color ?? TEA_KINDS[kind].color) : (legacyColor ?? TEA_KINDS.gruen.color)),
       brewTemp: values.brewTemp ? Number(values.brewTemp) || null : null,
       imageSrc: imageSrc ?? null,
@@ -165,7 +165,7 @@ export function TeaEditor({
           <fieldset>
             <legend className="field-label">Teeart</legend>
             <input type="hidden" name="kind" value={values.kind} />
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5" role="radiogroup" aria-label="Teeart">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3" role="radiogroup" aria-label="Teeart">
               {TEA_KIND_KEYS.map((k) => {
                 const active = values.kind === k;
                 return (
@@ -182,16 +182,28 @@ export function TeaEditor({
                   </button>
                 );
               })}
+              <button
+                type="button"
+                role="radio"
+                aria-checked={values.kind === NO_TEA_KIND}
+                onClick={() => setValues((v) => ({ ...v, kind: NO_TEA_KIND, flavored: false }))}
+                className={`flex min-h-14 items-center gap-3 rounded-xl border-2 px-4 py-3 text-left text-lg font-semibold transition ${values.kind === NO_TEA_KIND ? "border-stone-900 bg-white shadow-md" : "border-stone-200 bg-stone-50 text-stone-700"}`}
+              >
+                <span className="h-0.5 w-6 flex-none bg-stone-500" aria-hidden="true" />
+                Ohne Teeart
+              </button>
             </div>
+            {values.kind !== NO_TEA_KIND ? (
             <label className="mt-4 inline-flex min-h-12 cursor-pointer items-center gap-3 rounded-xl border-2 border-stone-200 px-4 py-2 text-lg font-semibold text-stone-800">
               <input type="checkbox" name="flavored" checked={values.flavored} onChange={(e) => setValues((v) => ({ ...v, flavored: e.target.checked }))} className="size-6 accent-brand-700" />
               aromatisiert
             </label>
+            ) : null}
             {errors?.kind ? (
               <p className="field-error">{errors.kind}</p>
             ) : (
               <p className="field-hint">
-                Auf dem Etikett: <b>{kind ? teaTypeLabel(kind, values.flavored) : legacyTeaType ? `„${legacyTeaType}“ (bitte eine Art wählen)` : "bitte eine Art wählen"}</b>. Farbe und
+                Auf dem Etikett: <b>{kind ? teaTypeLabel(kind, values.flavored) : values.kind === NO_TEA_KIND ? "nur ein durchgehender Strich" : legacyTeaType ? `„${legacyTeaType}“ (bitte eine Art wählen)` : "bitte eine Art wählen"}</b>. Farbe und
                 Motiv kommen aus den Einstellungen.
               </p>
             )}

@@ -45,6 +45,7 @@ Etiketten werden in dieser Reihenfolge ab dem ersten freien Feld verteilt.
 2. Name eintragen, eine der fünf Teearten wählen (Früchtetee, Kräutertee, Schwarztee, Grüntee,
    Rooibostee) und bei Bedarf **aromatisiert** anhaken. Auf dem Etikett steht dann zum Beispiel
    „Aromatisierter Schwarztee“ in zwei Zeilen. Farbe und Motiv kommen von der Teeart.
+   **Ohne Teeart** lässt die Zeile leer; auf dem Etikett steht dann nur ein durchgehender Strich.
    - **Name** ist der Name in der Liste, **Titel auf dem Etikett** das, was gedruckt wird. Ist der
      Titel leer, wird der Name gedruckt. Zeilenumbrüche im Titel werden übernommen.
    - Beschreibung und Zutaten eintragen.

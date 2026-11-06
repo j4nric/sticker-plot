@@ -2,7 +2,7 @@ import { z } from "zod";
 import { normalizeEan } from "~/label/codes";
 import { CALIBRATION_LIMITS, GEOMETRY_FIELDS, MAX_PRINT_LABELS, validateGeometry, type SheetGeometry } from "~/label/geometry";
 import { MOTIFS } from "~/label/motifs";
-import { TEA_KIND_KEYS, teaTypeLabel, type TeaKind } from "~/label/tea-types";
+import { isTeaKind, NO_TEA_KIND, TEA_KIND_KEYS, teaTypeLabel, type TeaKind } from "~/label/tea-types";
 import { FONTS, normalizeParams, PARAM_LIMITS, VARIANTS, type TemplateParams } from "~/label/template";
 import { normalizeParagraphs, unsupportedChars } from "~/label/text";
 import { germanDate, parseDecimal } from "./locale";
@@ -59,7 +59,7 @@ export const teaInput = z
   .object({
   name: text(80, "Name").pipe(z.string().min(1, "Bitte einen Namen eingeben")),
   title: titleText,
-  kind: z.enum(TEA_KIND_KEYS as [TeaKind, ...TeaKind[]], { message: "Bitte eine Teeart wählen" }),
+  kind: z.enum([NO_TEA_KIND, ...TEA_KIND_KEYS] as [typeof NO_TEA_KIND, ...TeaKind[]], { message: "Bitte eine Teeart wählen" }),
   flavored: z.boolean(),
   description: text(1500, "Beschreibung", true),
   ingredients: text(1000, "Zutaten", true),
@@ -82,7 +82,11 @@ export const teaInput = z
   shelfLifeMonths: optionalInt(1, 120, "Haltbarkeit"),
 })
   // Titel gleich Name heißt: kein eigener Titel; Teeart-Text folgt aus Art und Aroma
-  .transform((v) => ({ ...v, title: v.title === v.name ? "" : v.title, teaType: teaTypeLabel(v.kind, v.flavored) }));
+  .transform((v) => {
+    const kind = isTeaKind(v.kind) ? v.kind : null;
+    const flavored = kind ? v.flavored : false;
+    return { ...v, flavored, title: v.title === v.name ? "" : v.title, teaType: kind ? teaTypeLabel(kind, flavored) : "" };
+  });
 
 export type TeaInput = z.infer<typeof teaInput>;
 

@@ -176,6 +176,8 @@
 /* fest zweizeilig („Aromatisierter“ / Art): jede Zeile bleibt eine Zeile, die Schrift schrumpft */
 .tl-type.tl-type-lines .tl-type-text { white-space: nowrap; }
 .tl-type.tl-wrap2::before, .tl-type.tl-wrap2::after { display: none; }
+/* ohne Teeart: die beiden Striche laufen zu einem durch */
+.tl-type.tl-type-none { gap: 0; margin: 1.4mm 0 0.8mm; }
 
 .tl-brew {
   margin-top: 1.5mm;
@@ -268,6 +270,7 @@
 .tl-v-minimal .tl-frame::after { display: none; }
 .tl-v-minimal .tl-c-bg, .tl-v-minimal .tl-c-ring { display: none; }
 .tl-v-minimal .tl-type::before, .tl-v-minimal .tl-type::after { display: none; }
+.tl-v-minimal .tl-type-none { display: none; }
 .tl-v-minimal .tl-type { --type-ls: 0.22em; font-weight: 400; }
 .tl-v-minimal .tl-type.tl-wrap2 { --type-ls: 0.14em; }
 .tl-v-minimal .tl-footer { border-top-style: dotted; }

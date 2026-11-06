@@ -48,6 +48,8 @@ describe("readTeaForm", () => {
     expect(r.ok && r.value).toMatchObject({ name: "China Sencha", title: "", kind: "gruen", flavored: false, teaType: "Grüntee", description: "a\nb", ingredients: "", motif: "auto", brewTemp: null, organic: false });
     const flavored = readTeaForm(form({ name: "Kirsche", title: "Wilde\r\n\r\nKirsche ", kind: "rooibos", flavored: "on" }));
     expect(flavored.ok && flavored.value).toMatchObject({ title: "Wilde\nKirsche", teaType: "Aromatisierter Rooibostee" });
+    const none = readTeaForm(form({ name: "Hausmischung", kind: "keine", flavored: "on" }));
+    expect(none.ok && none.value).toMatchObject({ kind: "keine", flavored: false, teaType: "" });
   });
   it("prüft Zubereitung, EAN, Link und nicht druckbare Zeichen", () => {
     const r = readTeaForm(form({ name: "Tee 🍵", kind: "gruen", brewTemp: "120", ean: "123", productUrl: "javascript:alert(1)" }));
