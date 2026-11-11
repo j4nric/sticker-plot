@@ -6,8 +6,8 @@ on:
 
 jobs:
   test:
-    # ubuntu-latest ist seit 11.11.2026 Ubuntu 26.04; dort lädt apt die
-    # Playwright-Abhängigkeiten nicht. Bis das geht, fest auf 24.04.
+    # ubuntu-latest ist seit 11.11.2026 Ubuntu 26.04; die Playwright-Version
+    # hier kennt es noch nicht. Bis zum Update fest auf 24.04.
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -16,8 +16,10 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      # Ohne --with-deps: Das Runner-Image hat die Bibliotheken schon, und apt
+      # hängt so nicht an den Ubuntu-Spiegeln (am 11.11.2026 stundenlang nicht auflösbar).
       - name: Chromium für die PDF-Tests
-        run: npx playwright-core install --with-deps --only-shell chromium
+        run: npx playwright-core install --only-shell chromium
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
