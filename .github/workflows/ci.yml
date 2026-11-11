@@ -6,7 +6,9 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    # ubuntu-latest ist seit 11.11.2026 Ubuntu 26.04; dort lädt apt die
+    # Playwright-Abhängigkeiten nicht. Bis das geht, fest auf 24.04.
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
