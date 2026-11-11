@@ -100,6 +100,26 @@ tee-62-83-23-90.sslip.io {
 }
 ```
 
+#### Eigener Eintrag im vorderen Caddy (Netz `edge`)
+
+Auf dem gemeinsamen Server bindet der vordere Caddy (Container mit dem Label `edge.caddy=true`)
+jede `*.caddy`-Datei aus dem Docker-Volume `caddy-sites` ein. Die Tee-App bringt ihren Eintrag
+selbst mit: `deploy/tee.caddy` (Domain als Platzhalter `__DOMAIN__`). Bei jedem Update über
+`install-server.sh`, also auch beim automatischen Deploy aus GitHub Actions, passiert Folgendes,
+sofern Port 80/443 einem Caddy im Container gehören:
+
+- Netz `edge` und Volume `caddy-sites` werden angelegt, falls sie fehlen.
+- `docker-compose.override.yml` bekommt zusätzlich das Netz `edge` mit dem Alias
+  `tee-etiketten`. Das bisherige Netz `tee-proxy` bleibt, bis der alte Block aus der Caddyfile
+  der anderen App entfernt ist.
+- Der Eintrag wird mit der Domain gefüllt, allein geprüft und als `tee.caddy` ins Volume gelegt
+  (die vorige Fassung bleibt als `tee.caddy.prev`). Danach prüft der vordere Caddy seine ganze
+  Konfiguration und lädt neu. Lehnt er sie ab, kommt die vorige Fassung zurück und das Update
+  schlägt fehl. Gibt es noch keinen Container mit dem Label, wird der Eintrag nur abgelegt.
+
+Jeder Hostname darf auf dem Server nur einmal vorkommen. Der alte Block für die Domain muss
+deshalb aus der Caddyfile der anderen App verschwinden, sobald deren Caddy das Volume einbindet.
+
 Andere Webserver im Container (z. B. Traefik) werden nicht automatisch eingerichtet; dort die
 Weiterleitung Domain → Container `tee-etiketten`, Port 3000 eintragen.
 

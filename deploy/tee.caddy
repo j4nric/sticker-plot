@@ -1,0 +1,18 @@
+# Eintrag der Tee-App im vorderen Caddy des Servers (gemeinsames Netz `edge`).
+#
+# scripts/install-server.sh ersetzt __DOMAIN__ durch die Domain der App, prüft
+# den Eintrag und legt ihn als tee.caddy in das gemeinsame Docker-Volume
+# `caddy-sites`. Der vordere Caddy (Container mit dem Label edge.caddy=true)
+# bindet jede *.caddy-Datei daraus ein und wird ohne Neustart neu geladen.
+# Er erreicht die App über das Netz `edge` unter dem Namen `tee-etiketten`;
+# im Container lauscht sie immer auf Port 3000.
+#
+# Jeder Hostname darf auf dem Server nur einmal vorkommen, sonst lehnt der
+# vordere Caddy die ganze Konfiguration ab.
+__DOMAIN__ {
+	encode gzip
+	request_body {
+		max_size 64MB
+	}
+	reverse_proxy tee-etiketten:3000
+}

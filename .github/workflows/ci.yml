@@ -19,3 +19,8 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+      - name: Eintrag für den vorderen Caddy prüfen (deploy/tee.caddy)
+        run: |
+          sed 's/__DOMAIN__/tee.example.org/g' deploy/tee.caddy > "$RUNNER_TEMP/tee.caddy"
+          docker run --rm -v "$RUNNER_TEMP/tee.caddy:/etc/caddy/Caddyfile:ro" caddy:2.11-alpine \
+            caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile

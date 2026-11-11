@@ -117,20 +117,28 @@ APACHE
     [[ -n "$CADDYFILE" && -f "$CADDYFILE" ]] || fail "Die Caddyfile von $CNAME liegt nicht als Datei auf dem Server (erwartet als Mount nach /etc/caddy/Caddyfile)."
     info "Caddyfile: $CADDYFILE, Netzwerk: $NET"
 
-    info "Tee-App mit dem Netzwerk $NET verbinden"
+    # Zusätzlich das gemeinsame Netz edge: darüber erreicht der vordere Caddy die App, sobald
+    # er den Eintrag deploy/tee.caddy aus dem Volume caddy-sites lädt (install-server.sh).
+    docker network inspect edge >/dev/null 2>&1 || { info "Netzwerk edge anlegen"; docker network create edge >/dev/null; }
+    info "Tee-App mit den Netzwerken $NET und edge verbinden"
     cat > "$APP_DIR/docker-compose.override.yml" <<YAML
-# Angelegt von scripts/setup-proxy.sh: verbindet die App über das Netzwerk $NET mit dem Caddy-Container
-# $CNAME, damit dieser sie unter dem Namen tee-etiketten erreicht.
+# Angelegt von scripts/setup-proxy.sh: verbindet die App über das Netzwerk $NET (und das gemeinsame
+# Netz edge) mit dem Caddy-Container $CNAME, damit dieser sie unter dem Namen tee-etiketten erreicht.
 services:
   app:
     networks:
       default: {}
       proxy:
         aliases: [tee-etiketten]
+      edge:
+        aliases: [tee-etiketten]
 networks:
   proxy:
     external: true
     name: $NET
+  edge:
+    external: true
+    name: edge
 YAML
     (cd "$APP_DIR" && docker compose up -d)
 

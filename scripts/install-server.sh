@@ -236,6 +236,57 @@ EOF
   fi
 fi
 
+# ---------------------------------------------------------------- Vorderer Caddy (Netz edge)
+# Gehören Port 80/443 einem Caddy im Container einer anderen App, erreicht er die
+# Tee-App über das gemeinsame Netz `edge` unter dem Namen tee-etiketten, und die
+# App bringt ihren Eintrag (deploy/tee.caddy) selbst mit. Erkannt wird das am
+# Container mit dem Label edge.caddy=true oder an der docker-compose.override.yml,
+# die scripts/setup-proxy.sh für einen Caddy im Container angelegt hat.
+EDGE=0
+OVERRIDE="$APP_DIR/docker-compose.override.yml"
+OVERRIDE_MARK="Angelegt von scripts/setup-proxy.sh"
+if [[ $SETUP_CADDY -eq 0 ]]; then
+  if [[ -n "$(docker ps -q --filter label=edge.caddy=true)" ]] || grep -qsF "$OVERRIDE_MARK" "$OVERRIDE"; then
+    EDGE=1
+  fi
+fi
+if [[ $EDGE -eq 1 ]]; then
+  docker network inspect edge >/dev/null 2>&1 || { info "Netzwerk edge anlegen"; docker network create edge >/dev/null; }
+  docker volume inspect caddy-sites >/dev/null 2>&1 || docker volume create caddy-sites >/dev/null
+  if [[ -f "$OVERRIDE" ]] && ! grep -qF "$OVERRIDE_MARK" "$OVERRIDE"; then
+    # Selbst geschriebene Datei nicht überschreiben
+    grep -qE '^ *name: *edge *$' "$OVERRIDE" \
+      || warn "$OVERRIDE stammt nicht von setup-proxy.sh und enthält kein Netz edge. Bitte dort das Netz edge (external) mit dem Alias tee-etiketten ergänzen."
+  elif ! grep -qsE '^ *name: *edge *$' "$OVERRIDE"; then
+    info "Tee-App zusätzlich mit dem Netz edge verbinden"
+    # Das bisherige Netz zum vorderen Caddy (tee-proxy) bleibt, bis dessen alter Block entfernt ist
+    OLD_NET="$(sed -n 's/^ *name: *//p' "$OVERRIDE" 2>/dev/null | head -n1 || true)"
+    {
+      echo "# $OVERRIDE_MARK bzw. install-server.sh: verbindet die App mit dem vorderen"
+      echo "# Caddy-Container, der sie unter dem Namen tee-etiketten erreicht (Netz edge${OLD_NET:+ und $OLD_NET})."
+      echo "services:"
+      echo "  app:"
+      echo "    networks:"
+      echo "      default: {}"
+      if [[ -n "$OLD_NET" ]]; then
+        echo "      proxy:"
+        echo "        aliases: [tee-etiketten]"
+      fi
+      echo "      edge:"
+      echo "        aliases: [tee-etiketten]"
+      echo "networks:"
+      if [[ -n "$OLD_NET" ]]; then
+        echo "  proxy:"
+        echo "    external: true"
+        echo "    name: $OLD_NET"
+      fi
+      echo "  edge:"
+      echo "    external: true"
+      echo "    name: edge"
+    } > "$OVERRIDE"
+  fi
+fi
+
 # ---------------------------------------------------------------- Starten
 info "Container bauen und starten (beim ersten Mal einige Minuten)"
 docker compose up -d --build
@@ -246,6 +297,41 @@ for _ in $(seq 1 60); do
   sleep 2
 done
 [[ "${READY:-0}" -eq 1 ]] || fail "Die App antwortet nicht. Logs ansehen mit: cd $APP_DIR && docker compose logs app"
+
+# ---------------------------------------------------------------- Eintrag im vorderen Caddy
+# deploy/tee.caddy allein prüfen, die bisherige Fassung als .prev behalten (ohne
+# Endung .caddy, wird also nicht eingebunden), die neue ins Volume caddy-sites
+# legen. Dann prüft der vordere Caddy seine ganze Konfiguration und lädt ohne
+# Neustart neu. Lehnt er sie ab, kommt die bisherige Fassung zurück und das
+# Update schlägt fehl; der vordere Caddy läuft mit seiner alten Konfiguration weiter.
+EDGE_FRONT=""
+if [[ $EDGE -eq 1 ]]; then
+  info "Eintrag tee.caddy für den vorderen Caddy einrichten"
+  SITE_IMAGE=caddy:2.11-alpine
+  SITE_NAME=tee.caddy
+  SITE_FILE="$(mktemp /tmp/tee-site.XXXXXX.caddy)"
+  sed "s/__DOMAIN__/$DOMAIN/g" "$APP_DIR/deploy/tee.caddy" > "$SITE_FILE"
+  chmod 644 "$SITE_FILE"
+  docker run --rm -v caddy-sites:/sites -v "$SITE_FILE:/new.caddy:ro" "$SITE_IMAGE" sh -euc "
+    caddy validate --config /new.caddy --adapter caddyfile >/dev/null 2>&1 || { caddy validate --config /new.caddy --adapter caddyfile; exit 1; }
+    if [ -f /sites/$SITE_NAME ]; then cp /sites/$SITE_NAME /sites/$SITE_NAME.prev; else rm -f /sites/$SITE_NAME.prev; fi
+    cp /new.caddy /sites/$SITE_NAME
+  " || { rm -f "$SITE_FILE"; fail "deploy/tee.caddy ist ungültig (siehe oben), nichts geändert."; }
+  rm -f "$SITE_FILE"
+  EDGE_FRONT="$(docker ps -q --filter label=edge.caddy=true | head -n 1)"
+  if [[ -z "$EDGE_FRONT" ]]; then
+    warn "Noch kein vorderer Caddy mit dem Label edge.caddy=true. Der Eintrag liegt im Volume caddy-sites und wird beim Start des vorderen Caddy geladen."
+  elif docker exec "$EDGE_FRONT" caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile >/dev/null 2>&1; then
+    docker exec "$EDGE_FRONT" caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile
+    info "Vorderer Caddy neu geladen, Eintrag für $DOMAIN aktiv"
+  else
+    docker exec "$EDGE_FRONT" caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile || true
+    docker run --rm -v caddy-sites:/sites "$SITE_IMAGE" sh -euc "
+      if [ -f /sites/$SITE_NAME.prev ]; then mv /sites/$SITE_NAME.prev /sites/$SITE_NAME; else rm -f /sites/$SITE_NAME; fi
+    "
+    fail "Der vordere Caddy lehnt deploy/tee.caddy ab (siehe oben); die bisherige Fassung ist wiederhergestellt."
+  fi
+fi
 
 # ---------------------------------------------------------------- Datensicherung
 cat > /etc/cron.d/sticker-plot-backup <<EOF
@@ -258,6 +344,8 @@ info "Fertig"
 if [[ $SETUP_CADDY -eq 1 ]]; then
   echo "Die App ist erreichbar unter: https://$DOMAIN"
   echo "Das HTTPS-Zertifikat holt Caddy beim ersten Aufruf automatisch."
+elif [[ -n "$EDGE_FRONT" ]]; then
+  echo "Die App ist erreichbar unter: https://$DOMAIN (über den vorderen Caddy, Netz edge)"
 else
   echo "Die App läuft intern auf http://127.0.0.1:$APP_PORT."
   echo "Damit sie unter https://$DOMAIN erreichbar ist, den vorhandenen Webserver weiterleiten lassen."
