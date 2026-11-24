@@ -154,7 +154,7 @@ export async function extractFromPdf(pdf: Buffer, fileName: string): Promise<Ext
     const single = matchTeaKind(typeLine.text);
     return single.kind ? single : fromBlock.teaType ? fromBlock : single;
   })();
-  if (!type.kind) warnings.push(type.teaType ? `Teeart „${type.teaType}“ keiner der fünf Arten zugeordnet` : "Keine Teeart erkannt");
+  if (!type.kind) warnings.push(type.teaType ? `Teeart „${type.teaType}“ keiner Teeart zugeordnet` : "Keine Teeart erkannt");
   const descRaw = { text: split.rest, confidence: block.confidence };
   const { description, ingredients } = splitDescription(descRaw.text);
   if (!description) warnings.push("Keine Beschreibung erkannt");

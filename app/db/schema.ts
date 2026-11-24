@@ -38,7 +38,7 @@ export const teas = sqliteTable("teas", {
   name: text("name").notNull(),
   /** Titel auf dem Etikett; leer = Name */
   title: text("title").notNull().default(""),
-  /** eine der fünf Teearten (TEA_KINDS); leer nur bei alten, nicht zuordenbaren Sorten */
+  /** eine der Teearten (TEA_KINDS); leer nur bei alten, nicht zuordenbaren Sorten */
   kind: text("kind").notNull().default(""),
   flavored: integer("flavored", { mode: "boolean" }).notNull().default(false),
   /** Teeart als Text auf dem Etikett, aus kind und flavored abgeleitet */

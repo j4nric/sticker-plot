@@ -42,8 +42,8 @@ Etiketten werden in dieser Reihenfolge ab dem ersten freien Feld verteilt.
 ## Tee anlegen oder ändern
 
 1. Unter **Tees** auf **+ Neuer Tee** klicken.
-2. Name eintragen, eine der fünf Teearten wählen (Früchtetee, Kräutertee, Schwarztee, Grüntee,
-   Rooibostee) und bei Bedarf **aromatisiert** anhaken. Auf dem Etikett steht dann zum Beispiel
+2. Name eintragen, eine der Teearten wählen (Früchtetee, Kräutertee, Schwarztee, Grüntee,
+   Rooibostee, Weißer Tee) und bei Bedarf **aromatisiert** anhaken. Auf dem Etikett steht dann zum Beispiel
    „Aromatisierter Schwarztee“ in zwei Zeilen. Farbe und Motiv kommen von der Teeart.
    **Ohne Teeart** lässt die Zeile leer; auf dem Etikett steht dann nur ein durchgehender Strich.
    - **Name** ist der Name in der Liste, **Titel auf dem Etikett** das, was gedruckt wird. Ist der
@@ -117,7 +117,7 @@ Die Randmarken an den Papierkanten zeigen, ab wie vielen Millimetern der Drucker
 
 1. **Verwaltung → Import**, unter „Alte Etiketten (PDF) übernehmen“ alle PDFs auf einmal auswählen.
 2. Die Dateien werden hochgeladen und nacheinander gelesen, etwa zwei bis drei Sekunden pro Datei.
-3. Jedes Ergebnis erscheint mit Bild des alten Etiketts. Die erkannte Teeart wird einer der fünf
+3. Jedes Ergebnis erscheint mit Bild des alten Etiketts. Die erkannte Teeart wird einer der festen
    Arten zugeordnet, „Aromatisiert“ wird mit erkannt. Die Prozentzahlen zeigen, wie sicher die
    Erkennung ist. Felder bei Bedarf korrigieren und **Übernehmen**.
 4. Gibt es den Namen schon, wird das angezeigt. Mit „trotzdem zusätzlich anlegen“ entsteht eine

@@ -111,10 +111,12 @@ const KIND_SPELLINGS: [TeaKind, string][] = [
   ["rooibos", "Rooibos Tee"],
   ["fruechte", "Früchte Tee"],
   ["kraeuter", "Kräuter Tee"],
+  ["weiss", "Weisser Tee"],
+  ["weiss", "Weißtee"],
 ];
 
 /**
- * Teeart mit den fünf Arten abgleichen, auch zweizeilig („AROMATISIERTER /
+ * Teeart mit den festen Arten abgleichen, auch zweizeilig („AROMATISIERTER /
  * GRÜNER TEE“) und mit Lesefehlern.
  */
 export function matchTeaKind(raw: string): { kind: TeaKind | ""; flavored: boolean; teaType: string; confidence: number } {

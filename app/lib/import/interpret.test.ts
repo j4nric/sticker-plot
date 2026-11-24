@@ -35,10 +35,11 @@ describe("Import-Auswertung", () => {
     expect(chooseTitle([], "").warning).toBeDefined();
   });
 
-  it("ordnet Teearten den fünf Arten zu, auch zweizeilig und mit Lesefehlern", () => {
+  it("ordnet Teearten den festen Arten zu, auch zweizeilig und mit Lesefehlern", () => {
     expect(matchTeaKind("GRUNER TEE")).toMatchObject({ kind: "gruen", flavored: false, teaType: "Grüntee" });
     expect(matchTeaKind("AROMATISIERTER\nSCHWARZER TEE")).toMatchObject({ kind: "schwarz", flavored: true, teaType: "Aromatisierter Schwarztee" });
     expect(matchTeaKind("AROMATISIERTER FRUCHTETEE")).toMatchObject({ kind: "fruechte", flavored: true });
+    expect(matchTeaKind("AROMATISIERTER\nWEISER TEE")).toMatchObject({ kind: "weiss", flavored: true, teaType: "Aromatisierter weißer Tee" });
     expect(matchTeaKind("AR0MATISIERTER R00IBOS")).toMatchObject({ kind: "rooibos", flavored: true });
     expect(matchTeaKind("KRAUTER TEE")).toMatchObject({ kind: "kraeuter" });
     expect(matchTeaKind("HONEYBUSH").kind).toBe("");
