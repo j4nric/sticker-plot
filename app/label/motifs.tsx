@@ -36,6 +36,7 @@ const KIND_MOTIF: Record<string, MotifId> = {
   schwarz: "tasse",
   gruen: "tasse",
   rooibos: "kanne",
+  weiss: "tasse",
 };
 
 /**

@@ -42,7 +42,7 @@ function seed(db: Db) {
 }
 
 /**
- * Alte Sorten mit freier Teeart einer der fünf Arten zuordnen
+ * Alte Sorten mit freier Teeart einer der festen Arten zuordnen
  * („Grüner Tee“ → Grüntee). Nicht erkennbare bleiben leer und werden im
  * Editor zur Auswahl angeboten.
  */

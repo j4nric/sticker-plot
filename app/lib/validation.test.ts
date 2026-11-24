@@ -64,7 +64,7 @@ describe("readTeaForm", () => {
     expect(ok.ok && ok.value).toMatchObject({ brewTemp: 90, brewTime: "5 Min.", ean: "4006381333931", organic: true, shelfLifeMonths: 24 });
   });
 
-  it("verlangt Namen und eine der fünf Teearten", () => {
+  it("verlangt Namen und eine der Teearten", () => {
     const r = readTeaForm(form({ name: " ", kind: "oolong" }));
     expect(r.ok).toBe(false);
     if (!r.ok) {

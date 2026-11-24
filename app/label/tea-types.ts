@@ -1,5 +1,5 @@
 /**
- * Die fünf Teearten des Ladens. Jede kann aromatisiert sein; Farbe und
+ * Die Teearten des Ladens. Jede kann aromatisiert sein; Farbe und
  * Motiv kommen zentral aus den Einstellungen (Standardwerte hier).
  */
 export const TEA_KINDS = {
@@ -8,7 +8,8 @@ export const TEA_KINDS = {
   schwarz: { name: "Schwarztee", color: "#8a4b2a" },
   gruen: { name: "Grüntee", color: "#4f9a3f" },
   rooibos: { name: "Rooibostee", color: "#c0522b" },
-} as const satisfies Record<string, { name: string; color: string }>;
+  weiss: { name: "Weißer Tee", flavoredName: "weißer Tee", color: "#9a8f5e" },
+} as const satisfies Record<string, { name: string; flavoredName?: string; color: string }>;
 
 export type TeaKind = keyof typeof TEA_KINDS;
 export const TEA_KIND_KEYS = Object.keys(TEA_KINDS) as TeaKind[];
@@ -22,7 +23,8 @@ export const isTeaKind = (v: unknown): v is TeaKind => typeof v === "string" && 
 
 /** Text auf dem Etikett, z. B. „Aromatisierter Schwarztee“. */
 export function teaTypeLabel(kind: TeaKind, flavored: boolean): string {
-  return `${flavored ? "Aromatisierter " : ""}${TEA_KINDS[kind].name}`;
+  const k: { name: string; flavoredName?: string } = TEA_KINDS[kind];
+  return flavored ? `Aromatisierter ${k.flavoredName ?? k.name}` : k.name;
 }
 
 const KIND_PATTERNS: [TeaKind, RegExp][] = [
@@ -31,6 +33,8 @@ const KIND_PATTERNS: [TeaKind, RegExp][] = [
   ["rooibos", /rooibos|rotbusch/],
   ["schwarz", /schwarz/],
   ["gruen", /gr[uü]e?n|sencha|matcha/],
+  // zuletzt: „Grüner Tee mit weißer Rose“ bleibt Grüntee
+  ["weiss", /wei(ß|ss?)(er|tee)|white|pai mu tan|bai mu dan/],
 ];
 
 /**

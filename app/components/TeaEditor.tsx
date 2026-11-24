@@ -81,7 +81,7 @@ export function TeaEditor({
   errors?: TeaFormErrors;
   shop: ShopInfo;
   kinds: KindLook;
-  /** Teeart-Text und Farbe alter Sorten, solange keine der fünf Arten gewählt ist */
+  /** Teeart-Text und Farbe alter Sorten, solange keine der festen Arten gewählt ist */
   legacyTeaType?: string;
   legacyColor?: string;
   isNew: boolean;

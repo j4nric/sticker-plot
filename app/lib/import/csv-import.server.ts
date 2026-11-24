@@ -112,7 +112,7 @@ export function importTeasFromCsv(text: string, mode: "create" | "upsert"): CsvI
     if (kind?.flavored || yes(get("aromatisiert"))) form.set("flavored", "on");
     const parsed = readTeaForm(form);
     if (!parsed.ok) {
-      const message = parsed.errors.kind && !kind ? `Teeart „${get("teeart")}“ nicht erkannt (Früchtetee, Kräutertee, Schwarztee, Grüntee oder Rooibostee).` : Object.values(parsed.errors).join(" ");
+      const message = parsed.errors.kind && !kind ? `Teeart „${get("teeart")}“ nicht erkannt (Früchtetee, Kräutertee, Schwarztee, Grüntee, Rooibostee oder Weißer Tee).` : Object.values(parsed.errors).join(" ");
       report.errors.push({ row: rowNo, name, message });
       return;
     }

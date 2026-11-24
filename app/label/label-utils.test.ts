@@ -137,12 +137,15 @@ describe("Vorlagen und Motive", () => {
     expect(resolveMotif("kanne", { kind: "gruen", teaType: "" }, { own: false, kind: true })).toBe("kanne");
   });
 
-  it("kennt fünf Teearten, auch aus altem Text", () => {
+  it("kennt die Teearten, auch aus altem Text", () => {
     expect(teaTypeLabel("schwarz", true)).toBe("Aromatisierter Schwarztee");
     expect(teaTypeLabel("gruen", false)).toBe("Grüntee");
     expect(guessTeaKind("Grüner Tee")).toEqual({ kind: "gruen", flavored: false });
     expect(guessTeaKind("aromatisierter Früchte-Tee")).toEqual({ kind: "fruechte", flavored: true });
     expect(guessTeaKind("Rooibos")).toEqual({ kind: "rooibos", flavored: false });
+    expect(teaTypeLabel("weiss", true)).toBe("Aromatisierter weißer Tee");
+    expect(guessTeaKind("WEISSER TEE")).toEqual({ kind: "weiss", flavored: false });
+    expect(guessTeaKind("Grüner Tee mit weißer Rose")).toEqual({ kind: "gruen", flavored: false });
     expect(guessTeaKind("Oolong")).toBeNull();
     expect(teaTypeLines("Aromatisierter Schwarztee")).toEqual(["Aromatisierter", "Schwarztee"]);
     expect(teaTypeLines("Grüntee")).toEqual(["Grüntee"]);
